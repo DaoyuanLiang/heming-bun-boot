@@ -22,7 +22,7 @@ export interface ApplicationOptions {
 }
 
 /**
- * Extension hooks for library authors (e.g. @heming/bun-boot-ext).
+ * Extension hooks for library authors (e.g. heming-bun-boot-ext).
  * End users should use ApplicationOptions, not these.
  */
 export interface ApplicationHooks {

@@ -1,5 +1,5 @@
-import { Injectable } from "@heming/bun-boot";
-import type { Context } from "@heming/bun-boot";
+import { Injectable } from "heming-bun-boot";
+import type { Context } from "heming-bun-boot";
 import { JwtService } from "./jwt.service";
 import type { JwtPayload } from "./jwt.service";
 import { AUTH_GUARD, PUBLIC_ROUTE } from "./auth.decorators";
@@ -18,7 +18,7 @@ export interface AuthGuard {
  */
 export function createAuthMiddleware(
   guardResolver: (guardClass: new (...args: any[]) => AuthGuard) => AuthGuard
-): import("@heming/bun-boot").Middleware {
+): import("heming-bun-boot").Middleware {
   return async (ctx: Context, next: () => Promise<Response>) => {
     const match = ctx.route;
     if (!match) return next();

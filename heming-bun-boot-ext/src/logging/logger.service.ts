@@ -1,4 +1,4 @@
-import { Injectable } from "@heming/bun-boot";
+import { Injectable } from "heming-bun-boot";
 import winston from "winston";
 import DailyRotateFile from "winston-daily-rotate-file";
 

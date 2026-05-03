@@ -1,4 +1,4 @@
-import type { Middleware, Context } from "@heming/bun-boot";
+import type { Middleware, Context } from "heming-bun-boot";
 import { Result } from "./result";
 import { HttpException } from "./exceptions";
 

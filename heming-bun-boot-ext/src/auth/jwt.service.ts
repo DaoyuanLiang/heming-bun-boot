@@ -1,4 +1,4 @@
-import { Injectable } from "@heming/bun-boot";
+import { Injectable } from "heming-bun-boot";
 import jwt from "jsonwebtoken";
 
 export interface JwtPayload {

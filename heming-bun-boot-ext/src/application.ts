@@ -2,8 +2,8 @@ import {
   Application,
   RequestInjector,
   Context,
-} from "@heming/bun-boot";
-import type { ApplicationHooks, Middleware } from "@heming/bun-boot";
+} from "heming-bun-boot";
+import type { ApplicationHooks, Middleware } from "heming-bun-boot";
 
 import { LoggerService } from "./logging/logger.service";
 import { setLoggerForDecorator } from "./logging/logger.decorator";
@@ -14,7 +14,7 @@ import { CURRENT_USER_INDEX } from "./auth/auth.decorators";
 import { createRequestIdMiddleware } from "./middleware/request-id";
 import { createExceptionFilter } from "./result/exception.filter";
 import { Result } from "./result/result";
-import type { ApplicationOptions } from "@heming/bun-boot";
+import type { ApplicationOptions } from "heming-bun-boot";
 
 // Re-export for convenience
 export type ExtApplicationOptions = ApplicationOptions;

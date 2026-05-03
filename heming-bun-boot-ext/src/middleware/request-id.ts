@@ -1,4 +1,4 @@
-import type { Middleware, Context } from "@heming/bun-boot";
+import type { Middleware, Context } from "heming-bun-boot";
 
 /**
  * Generates a traceId (UUID v4) for each request,

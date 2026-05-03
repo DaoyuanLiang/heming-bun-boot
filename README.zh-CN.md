@@ -1,4 +1,4 @@
-# @heming/bun-boot
+# heming-bun-boot
 
 > 性能接近原生 Bun，开发体验接近 Spring Boot。
 
@@ -8,7 +8,7 @@
 
 ## 特性
 
-### 核心模块 (`@heming/bun-boot`)
+### 核心模块 (`heming-bun-boot`)
 
 - **注解式开发** — `@Controller`、`@Get`、`@Post`、`@Put`、`@Delete`、`@Patch`、`@Injectable`、`@Inject`、`@Configuration`、`@Value`
 - **依赖注入** — 构造函数注入、单例/请求作用域、循环依赖检测
@@ -18,7 +18,7 @@
 - **高性能** — 基于 Map 的路由匹配（静态 O(1)，参数化快速比较），对 `Bun.serve()` 的薄封装
 - **零重型依赖** — 仅依赖 `reflect-metadata`
 
-### 扩展模块 (`@heming/bun-boot-ext`)
+### 扩展模块 (`heming-bun-boot-ext`)
 
 - **统一响应** — 所有 API 响应使用 `Result<T>` 格式（`{ code, message, data, timestamp, traceId }`）
 - **异常处理** — `HttpException` 家族（7 种异常），自动转换为 `Result.fail()`
@@ -33,14 +33,14 @@
 ### 仅核心模块
 
 ```bash
-bun add @heming/bun-boot reflect-metadata
+bun add heming-bun-boot reflect-metadata
 ```
 
 ### 含企业扩展
 
 ```bash
-bun add @heming/bun-boot-ext reflect-metadata
-# @heming/bun-boot 作为 peer dependency 自动包含
+bun add heming-bun-boot-ext reflect-metadata
+# heming-bun-boot 作为 peer dependency 自动包含
 ```
 
 ---
@@ -59,7 +59,7 @@ import {
   Configuration,
   Value,
   Context,
-} from "@heming/bun-boot";
+} from "heming-bun-boot";
 
 // ── 配置 ──
 @Configuration()
@@ -137,7 +137,7 @@ import "reflect-metadata";
 import {
   Controller, Get, Post, Injectable, Inject,
   Configuration, Value, Context,
-} from "@heming/bun-boot";
+} from "heming-bun-boot";
 import {
   ExtApplication,
   Result,
@@ -146,7 +146,7 @@ import {
   JwtAuthGuard,
   NotFoundException,
   BadRequestException,
-} from "@heming/bun-boot-ext";
+} from "heming-bun-boot-ext";
 
 // ── 配置 ──
 @Configuration()
@@ -374,7 +374,7 @@ type Middleware = (
 ### 自定义中间件
 
 ```typescript
-import { Application, type Middleware } from "@heming/bun-boot";
+import { Application, type Middleware } from "heming-bun-boot";
 
 // 计时中间件
 const timingMiddleware: Middleware = async (ctx, next) => {
@@ -484,7 +484,7 @@ throw new UnauthorizedException();                       // { code:401, message:
 **LoggerService** — 基于 Winston，自动注册：
 
 ```typescript
-import { LoggerService } from "@heming/bun-boot-ext";
+import { LoggerService } from "heming-bun-boot-ext";
 
 @Injectable()
 class UserService {
@@ -508,7 +508,7 @@ class UserService {
 **@Log() 方法装饰器：**
 
 ```typescript
-import { Log } from "@heming/bun-boot-ext";
+import { Log } from "heming-bun-boot-ext";
 
 class UserService {
   @Log()
@@ -529,7 +529,7 @@ class UserService {
 **JwtService** — 自动注册，从环境变量读取 `JWT_SECRET` 和 `JWT_EXPIRES_IN`：
 
 ```typescript
-import { JwtService } from "@heming/bun-boot-ext";
+import { JwtService } from "heming-bun-boot-ext";
 
 @Injectable()
 class AuthService {
@@ -560,8 +560,8 @@ class AuthService {
 | `@CurrentUser()` | 参数 | 将 JWT 负载注入处理器参数 |
 
 ```typescript
-import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "@heming/bun-boot-ext";
-import type { JwtPayload } from "@heming/bun-boot-ext";
+import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "heming-bun-boot-ext";
+import type { JwtPayload } from "heming-bun-boot-ext";
 
 @Controller("/users")
 @UseGuard(JwtAuthGuard)         // 所有接口需要鉴权
@@ -585,8 +585,8 @@ class UserController {
 ### 自定义鉴权守卫
 
 ```typescript
-import { Injectable } from "@heming/bun-boot";
-import type { AuthGuard, Context } from "@heming/bun-boot-ext";
+import { Injectable } from "heming-bun-boot";
+import type { AuthGuard, Context } from "heming-bun-boot-ext";
 
 @Injectable()
 class ApiKeyGuard implements AuthGuard {
@@ -808,7 +808,7 @@ curl http://localhost:3000/users/999 \
 
 ```
 bun-project/
-├── heming-bun-boot-core/              # @heming/bun-boot
+├── heming-bun-boot-core/              # heming-bun-boot
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
@@ -833,7 +833,7 @@ bun-project/
 │       │   └── config-loader.ts       # 环境变量/配置加载器
 │       └── scanner/
 │           └── module-scanner.ts      # 自动扫描
-├── heming-bun-boot-ext/               # @heming/bun-boot-ext
+├── heming-bun-boot-ext/               # heming-bun-boot-ext
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/

@@ -8,7 +8,7 @@ import {
   Configuration,
   Value,
   Context,
-} from "@heming/bun-boot";
+} from "heming-bun-boot";
 import {
   ExtApplication,
   Result,
@@ -18,8 +18,8 @@ import {
   JwtAuthGuard,
   NotFoundException,
   BadRequestException,
-} from "@heming/bun-boot-ext";
-import type { JwtPayload } from "@heming/bun-boot-ext";
+} from "heming-bun-boot-ext";
+import type { JwtPayload } from "heming-bun-boot-ext";
 
 // ─── Configuration ───────────────────────────────────────
 @Configuration()
@@ -112,7 +112,7 @@ class RootController {
     return Result.ok({
       status: "ok",
       uptime: Bun.nanoseconds(),
-      framework: "@heming/bun-boot + ext",
+      framework: "heming-bun-boot + ext",
     });
   }
 }

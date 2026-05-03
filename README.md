@@ -1,4 +1,4 @@
-# @heming/bun-boot
+# heming-bun-boot
 
 A **Spring Boot-style web framework** for Bun with decorators and dependency injection.
 
@@ -8,7 +8,7 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 
 ## Features
 
-### Core (`@heming/bun-boot`)
+### Core (`heming-bun-boot`)
 
 - **Decorator-based** — `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`, `@Injectable`, `@Inject`, `@Configuration`, `@Value`
 - **Dependency Injection** — constructor injection, singleton/request scopes, circular dependency detection
@@ -18,7 +18,7 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 - **High performance** — Map-based routing (O(1) static, fast param matching), thin wrapper over `Bun.serve()`
 - **Zero heavy dependencies** — only `reflect-metadata`
 
-### Ext (`@heming/bun-boot-ext`)
+### Ext (`heming-bun-boot-ext`)
 
 - **Unified Response** — `Result<T>` format for all API responses (`{ code, message, data, timestamp, traceId }`)
 - **Exception Handling** — `HttpException` family (7 types), automatic conversion to `Result.fail()`
@@ -33,14 +33,14 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 ### Core only
 
 ```bash
-bun add @heming/bun-boot reflect-metadata
+bun add heming-bun-boot reflect-metadata
 ```
 
 ### With enterprise extensions
 
 ```bash
-bun add @heming/bun-boot-ext reflect-metadata
-# @heming/bun-boot is included as a peer dependency
+bun add heming-bun-boot-ext reflect-metadata
+# heming-bun-boot is included as a peer dependency
 ```
 
 ---
@@ -59,7 +59,7 @@ import {
   Configuration,
   Value,
   Context,
-} from "@heming/bun-boot";
+} from "heming-bun-boot";
 
 // ── Configuration ──
 @Configuration()
@@ -137,7 +137,7 @@ import "reflect-metadata";
 import {
   Controller, Get, Post, Injectable, Inject,
   Configuration, Value, Context,
-} from "@heming/bun-boot";
+} from "heming-bun-boot";
 import {
   ExtApplication,
   Result,
@@ -145,7 +145,7 @@ import {
   JwtAuthGuard,
   NotFoundException,
   BadRequestException,
-} from "@heming/bun-boot-ext";
+} from "heming-bun-boot-ext";
 
 // ── Configuration ──
 @Configuration()
@@ -369,7 +369,7 @@ type Middleware = (
 ### Custom Middleware
 
 ```typescript
-import { Application, type Middleware } from "@heming/bun-boot";
+import { Application, type Middleware } from "heming-bun-boot";
 
 // Timing middleware
 const timingMiddleware: Middleware = async (ctx, next) => {
@@ -479,7 +479,7 @@ All extend `HttpException` and are automatically caught by `GlobalExceptionFilte
 **LoggerService** — Winston-based, auto-registered:
 
 ```typescript
-import { LoggerService } from "@heming/bun-boot-ext";
+import { LoggerService } from "heming-bun-boot-ext";
 
 @Injectable()
 class UserService {
@@ -503,7 +503,7 @@ class UserService {
 **@Log() method decorator:**
 
 ```typescript
-import { Log } from "@heming/bun-boot-ext";
+import { Log } from "heming-bun-boot-ext";
 
 class UserService {
   @Log()
@@ -524,7 +524,7 @@ class UserService {
 **JwtService** — auto-registered, reads `JWT_SECRET` and `JWT_EXPIRES_IN` from env:
 
 ```typescript
-import { JwtService } from "@heming/bun-boot-ext";
+import { JwtService } from "heming-bun-boot-ext";
 
 @Injectable()
 class AuthService {
@@ -555,7 +555,7 @@ class AuthService {
 | `@CurrentUser()` | Parameter | Inject JWT payload into handler parameter |
 
 ```typescript
-import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "@heming/bun-boot-ext";
+import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "heming-bun-boot-ext";
 
 @Controller("/users")
 @UseGuard(JwtAuthGuard)         // All routes require authentication
@@ -579,8 +579,8 @@ class UserController {
 ### Custom Auth Guard
 
 ```typescript
-import { Injectable } from "@heming/bun-boot";
-import type { AuthGuard, Context } from "@heming/bun-boot-ext";
+import { Injectable } from "heming-bun-boot";
+import type { AuthGuard, Context } from "heming-bun-boot-ext";
 
 @Injectable()
 class ApiKeyGuard implements AuthGuard {
@@ -802,7 +802,7 @@ curl http://localhost:3000/users/999 \
 
 ```
 bun-project/
-├── heming-bun-boot-core/              # @heming/bun-boot
+├── heming-bun-boot-core/              # heming-bun-boot
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
@@ -827,7 +827,7 @@ bun-project/
 │       │   └── config-loader.ts       # Env/config loader
 │       └── scanner/
 │           └── module-scanner.ts      # Auto-discovery
-├── heming-bun-boot-ext/               # @heming/bun-boot-ext
+├── heming-bun-boot-ext/               # heming-bun-boot-ext
 │   ├── package.json
 │   ├── tsconfig.json
 │   └── src/
