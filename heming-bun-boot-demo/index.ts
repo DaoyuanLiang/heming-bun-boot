@@ -12,10 +12,8 @@ import {
 import {
   ExtApplication,
   Result,
-  LoggerService,
   JwtService,
   UseGuard,
-  Public,
   CurrentUser,
   JwtAuthGuard,
   NotFoundException,
@@ -97,7 +95,6 @@ class UserController {
   }
 
   @Get("/me")
-  @Public()
   getProfile(@CurrentUser() user: JwtPayload) {
     return Result.ok({
       id: user.sub,
@@ -125,5 +122,7 @@ ExtApplication.run({
   controllers: [RootController, AuthController, UserController],
   providers: [UserService],
   configurations: [AppConfig],
-  port: 3000,
+  static: { assets: "public", prefix: "/" },
+}).then(()=>{
+  console.log("Server started");
 });

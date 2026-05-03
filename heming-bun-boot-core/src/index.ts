@@ -1,10 +1,14 @@
 // Application bootstrap
 export { Application } from "./application";
-export type { ApplicationOptions } from "./application";
+export type { ApplicationOptions, ApplicationHooks } from "./application";
 
 // Middleware
 export { compose } from "./middleware";
 export type { Middleware } from "./middleware";
+
+// Static file serving
+export { serveStatic, createStaticMiddleware } from "./static";
+export type { StaticOptions } from "./static";
 
 // Context
 export { Context } from "./context";

@@ -1,6 +1,8 @@
+import { Injectable } from "@heming/bun-boot";
 import type { Context } from "@heming/bun-boot";
+import { JwtService } from "./jwt.service";
 import type { JwtPayload } from "./jwt.service";
-import { AUTH_GUARD, PUBLIC_ROUTE, CURRENT_USER_INDEX } from "./auth.decorators";
+import { AUTH_GUARD, PUBLIC_ROUTE } from "./auth.decorators";
 import { UnauthorizedException } from "../result/exceptions";
 
 /**
@@ -47,8 +49,9 @@ export function createAuthMiddleware(
  * JWT-based auth guard. Extracts Bearer token from Authorization header,
  * verifies it, and attaches the payload to ctx.
  */
+@Injectable()
 export class JwtAuthGuard implements AuthGuard {
-  constructor(private jwtService: { verify(token: string): JwtPayload | null }) {}
+  constructor(private jwtService: JwtService) {}
 
   canActivate(ctx: Context): boolean {
     const header = ctx.request.headers.get("authorization");

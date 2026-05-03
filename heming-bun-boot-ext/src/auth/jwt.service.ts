@@ -31,6 +31,7 @@ export class JwtService {
    * Sign a JWT token with the given payload.
    */
   sign(payload: Omit<JwtPayload, "iat" | "exp">, options?: JwtSignOptions): string {
+    // @ts-ignore
     return jwt.sign(payload as object, this.secret, {
       expiresIn: options?.expiresIn ?? this.expiresIn,
       algorithm: options?.algorithm ?? "HS256",
