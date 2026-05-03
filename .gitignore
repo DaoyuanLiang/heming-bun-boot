@@ -1,0 +1,9 @@
+/doc/
+/.claude/
+/.idea/
+/heming-bun-boot-core/node_modules/
+/heming-bun-boot-core/heming-bun-boot-*.tgz
+/heming-bun-boot-demo/dist/
+/heming-bun-boot-demo/node_modules/
+/heming-bun-boot-demo/heming-bun-boot-*.tgz
+/heming-bun-boot-ext/node_modules/

@@ -1,0 +1,31 @@
+{
+  "name": "@heming/bun-boot",
+  "version": "0.1.0",
+  "description": "A Spring Boot-style web framework for Bun with decorators and DI",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": [
+    "src/"
+  ],
+  "keywords": [
+    "bun",
+    "web",
+    "framework",
+    "decorators",
+    "dependency-injection",
+    "spring-boot"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "reflect-metadata": "^0.2.2"
+  },
+  "peerDependencies": {
+    "bun": ">=1.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13"
+  }
+}

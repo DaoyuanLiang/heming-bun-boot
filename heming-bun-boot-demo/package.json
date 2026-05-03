@@ -1,0 +1,19 @@
+{
+  "name": "@heming/bun-boot-demo",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@heming/bun-boot": "file:../heming-bun-boot-core",
+    "@heming/bun-boot-ext": "file:../heming-bun-boot-ext",
+    "reflect-metadata": "^0.2.2"
+  },
+  "scripts": {
+    "dev": "bun --watch run index.ts",
+    "start": "bun run index.ts",
+    "build:linux": "bun build --compile --target=bun-linux-x64 ./index.ts --outfile ./dist/demo",
+    "build:windows": "bun build --compile --target=bun-windows-x64 ./index.ts --outfile ./dist/demo.exe"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.3.13"
+  }
+}
