@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "heming-bun-boot": "file:../heming-bun-boot-core",
-    "heming-bun-boot-ext": "file:../heming-bun-boot-ext",
+    "heming-bun-boot": "^0.1.1",
+    "heming-bun-boot-ext": "^0.1.1",
     "reflect-metadata": "^0.2.2"
   },
   "scripts": {
