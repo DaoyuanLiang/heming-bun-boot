@@ -6,8 +6,8 @@
       "name": "heming-bun-boot-demo",
       "dependencies": {
         "heming-bun-boot": "^0.1.1",
-        "heming-bun-boot-db": "file:heming-bun-boot-db-0.1.2.tgz",
-        "heming-bun-boot-ext": "file:heming-bun-boot-ext-0.1.2.tgz",
+        "heming-bun-boot-db": "^0.1.2",
+        "heming-bun-boot-ext": "^0.1.2",
         "mysql2": "^3.14.0",
         "reflect-metadata": "^0.2.2",
       },
@@ -87,9 +87,9 @@
 
     "heming-bun-boot": ["heming-bun-boot@0.1.1", "", { "dependencies": { "reflect-metadata": "^0.2.2" }, "peerDependencies": { "bun": ">=1.3.0" } }, "sha512-mY3s5bKU9KTQr8vccj243Z10HWpLnaNqYujfX7+7ghaqQBn5UPdXcWriz4b7fGPFQ1u4UmJyvH7wRWCI7MvLsw=="],
 
-    "heming-bun-boot-db": ["heming-bun-boot-db@heming-bun-boot-db-0.1.2.tgz", { "dependencies": { "mysql2": "^3.14.0" }, "peerDependencies": { "heming-bun-boot": ">=0.1.0", "reflect-metadata": "*" } }, "sha512-Hlj3/erok2/69viID4VXtzjz3sVdD6KWCi1eLkaaRLSrTTMH18wWAzHLsXH/v0V71+/nccR14tzeJYwnpBm6Qw=="],
+    "heming-bun-boot-db": ["heming-bun-boot-db@0.1.2", "", { "dependencies": { "mysql2": "^3.14.0" }, "peerDependencies": { "heming-bun-boot": ">=0.1.0", "reflect-metadata": "*" } }, "sha512-vQscZP+K9lDhbIJse5BYvVpEXOIRacO29odq3Sd0EFm3SfOCgZN4Vf6nRyyQe4LW5GiA4hGLcTSFpeM7WKSrxQ=="],
 
-    "heming-bun-boot-ext": ["heming-bun-boot-ext@heming-bun-boot-ext-0.1.2.tgz", { "dependencies": { "jsonwebtoken": "^9.0.2", "winston": "^3.17.0", "winston-daily-rotate-file": "^5.0.0" }, "peerDependencies": { "heming-bun-boot": ">=0.1.0" } }, "sha512-RKDlbYZGtImXnpz+GeWuFz+kymEy99fBVmc78zm7P26T0PJso13us4Lmbc5qUcoYoOcz9PpzvREMbxCZ37Nscg=="],
+    "heming-bun-boot-ext": ["heming-bun-boot-ext@0.1.2", "", { "dependencies": { "jsonwebtoken": "^9.0.2", "winston": "^3.17.0", "winston-daily-rotate-file": "^5.0.0" }, "peerDependencies": { "heming-bun-boot": ">=0.1.0" } }, "sha512-mm3P6wT0embW7rhkmssVMrKoKsL1EZ+yaThgRRI8ckfTuLHuLPSSvTLF++v1oxdve8Pqce/qM2QP8ktiVMnqiA=="],
 
     "iconv-lite": ["iconv-lite@0.7.2", "", { "dependencies": { "safer-buffer": ">= 2.1.2 < 3.0.0" } }, "sha512-im9DjEDQ55s9fL4EYzOAv0yMqmMBSZp6G0VvFyTMPKWxiSBHUj9NW/qqLmXUwXrrM7AvqSlTCfvqRb0cM8yYqw=="],
 

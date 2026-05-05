@@ -4,8 +4,8 @@
   "private": true,
   "dependencies": {
     "heming-bun-boot": "^0.1.1",
-    "heming-bun-boot-ext": "file:heming-bun-boot-ext-0.1.2.tgz",
-    "heming-bun-boot-db": "file:heming-bun-boot-db-0.1.2.tgz",
+    "heming-bun-boot-ext": "^0.1.2",
+    "heming-bun-boot-db": "^0.1.2",
     "mysql2": "^3.14.0",
     "reflect-metadata": "^0.2.2"
   },
