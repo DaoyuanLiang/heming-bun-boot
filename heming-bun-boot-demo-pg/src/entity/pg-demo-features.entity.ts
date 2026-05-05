@@ -5,6 +5,7 @@ import {
   GeneratedValue,
   GenerationType,
 } from "heming-bun-boot-db";
+import type { Geometry } from "heming-bun-boot-db";
 
 @Table("demo_features", { comment: "PG user table" })
 export class PgDemoFeaturesEntity {
@@ -16,6 +17,6 @@ export class PgDemoFeaturesEntity {
   @Column({ length: 50, nullable: true})
   name!: string;
 
-  @Column({comment: "geom" })
-  geom!: string;
+  @Column({ type: "geometry(point, 4326)", nullable: true, comment: "geom" })
+  geom!: Geometry;
 }

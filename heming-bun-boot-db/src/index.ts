@@ -42,3 +42,17 @@ export { QueryWrapper } from "./repository/query-wrapper";
 
 // DDL
 export { DDLGenerator } from "./ddl/ddl-generator";
+
+// GeoJSON types (PostGIS geometry columns return these)
+export type {
+  Position,
+  GeoJsonCrs,
+  Point,
+  MultiPoint,
+  LineString,
+  MultiLineString,
+  Polygon,
+  MultiPolygon,
+  GeometryCollection,
+  Geometry,
+} from "./types/geojson";

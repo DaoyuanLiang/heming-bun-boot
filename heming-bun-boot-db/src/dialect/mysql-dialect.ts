@@ -6,13 +6,22 @@ import type { DatabaseDialect, DDLDialect, ColumnInfo, PageInfo } from "./dialec
 class MySQLConnection implements Connection {
   private pool: any;
   private transactionConn: any = null;
+  private showSql: boolean;
 
-  constructor(pool: any) {
+  constructor(pool: any, showSql = false) {
     this.pool = pool;
+    this.showSql = showSql;
+  }
+
+  private logSql(sql: string, params?: any[]): void {
+    if (!this.showSql) return;
+    console.log("[bun-db] SQL:", sql);
+    if (params && params.length > 0) console.log("[bun-db] PARAMS:", JSON.stringify(params));
   }
 
   async execute(sql: string, params?: any[]): Promise<ExecuteResult> {
     const conn = this.transactionConn ?? this.pool;
+    this.logSql(sql, params);
     const [result] = await conn.execute(sql, params);
     return {
       affectedRows: result.affectedRows,
@@ -23,6 +32,7 @@ class MySQLConnection implements Connection {
 
   async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
     const conn = this.transactionConn ?? this.pool;
+    this.logSql(sql, params);
     const [rows] = await conn.query(sql, params);
     return rows as T[];
   }
@@ -67,6 +77,8 @@ class MySQLConnection implements Connection {
 // ---------- DDL ----------
 
 class MySQLDDLDialect implements DDLDialect {
+  constructor(private mapType: (col: ColumnMetadata) => string) {}
+
   async tableExists(connection: Connection, tableName: string): Promise<boolean> {
     const rows = await connection.query<any>(
       `SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1`,
@@ -146,7 +158,7 @@ class MySQLDDLDialect implements DDLDialect {
   private buildColumnDef(col: ColumnMetadata): string {
     const parts: string[] = [];
     parts.push(`\`${col.columnName}\``);
-    parts.push(col.databaseType);
+    parts.push(this.mapType(col));
 
     if (!col.nullable) parts.push("NOT NULL");
     if (col.isGenerated && col.generationType === "identity" as any) {
@@ -185,7 +197,7 @@ export class MySQLDialect implements DatabaseDialect {
       timezone: config.timezone ?? "+00:00",
       namedPlaceholders: false,
     });
-    return new MySQLConnection(pool);
+    return new MySQLConnection(pool, config.showSql);
   }
 
   mapColumnType(col: ColumnMetadata): string {
@@ -301,7 +313,7 @@ export class MySQLDialect implements DatabaseDialect {
   }
 
   getDDLGenerator(): DDLDialect {
-    return new MySQLDDLDialect();
+    return new MySQLDDLDialect(this.mapColumnType.bind(this));
   }
 
   // ---------- Helpers ----------

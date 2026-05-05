@@ -47,4 +47,27 @@ export class PgUserService {
     async findAllGeom(): Promise<PgDemoFeaturesEntity[]> {
         return this.geomRepo.selectList(this.geomRepo.queryBuilder().orderByDesc("id"));
     }
+
+    async testNativeSql() {
+        // 1. queryRaw — 聚合查询
+        const groupRows = await this.repo.queryRaw<{ name: string; cnt: number }>(
+            `SELECT "name", COUNT(*)::int AS cnt FROM "pg_users" GROUP BY "name" ORDER BY cnt DESC`,
+        );
+
+        // 2. queryRawOne — 标量查询
+        const statRow = await this.repo.queryRawOne<{ total: number; max_id: number }>(
+            `SELECT COUNT(*)::int AS total, COALESCE(MAX("id"), 0)::int AS max_id FROM "pg_users"`,
+        );
+
+        // 3. executeRaw — 用原生 SQL 更新（示例：将所有 email 转小写）
+        const execResult = await this.repo.executeRaw(
+            `UPDATE "pg_users" SET "email" = LOWER("email") WHERE "email" != LOWER("email")`,
+        );
+
+        return {
+            groupRows,
+            stat: statRow,
+            updatedRows: execResult.affectedRows,
+        };
+    }
 }

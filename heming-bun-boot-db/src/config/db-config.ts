@@ -15,6 +15,7 @@ export interface DBConfig {
   database: string;
   poolSize: number;
   ddlAuto: DDLAuto;
+  showSql?: boolean;
   charset?: string;
   timezone?: string;
 }
@@ -28,6 +29,7 @@ export const DEFAULT_DB_CONFIG: Partial<DBConfig> = {
   database: "test",
   poolSize: 10,
   ddlAuto: DDLAuto.NONE,
+  showSql: false,
   charset: "utf8mb4",
   timezone: "+00:00",
 };

@@ -32,6 +32,7 @@ function resolveDBConfig(userConfig?: Partial<DBConfig>): DBConfig {
   if (process.env.DB_DDL_AUTO) fromEnv.ddlAuto = process.env.DB_DDL_AUTO as DDLAuto;
   if (process.env.DB_CHARSET) fromEnv.charset = process.env.DB_CHARSET;
   if (process.env.DB_TIMEZONE) fromEnv.timezone = process.env.DB_TIMEZONE;
+  if (process.env.DB_SHOW_SQL) fromEnv.showSql = /^(true|1|yes|on)$/i.test(process.env.DB_SHOW_SQL);
 
   return { ...DEFAULT_DB_CONFIG, ...fromEnv, ...userConfig } as DBConfig;
 }

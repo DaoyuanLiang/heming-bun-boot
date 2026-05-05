@@ -2,6 +2,143 @@ import type { ColumnMetadata, EntityMetadata } from "../core/entity-metadata";
 import type { Connection, ExecuteResult } from "../core/connection";
 import type { DBConfig } from "../config/db-config";
 import type { DatabaseDialect, DDLDialect, ColumnInfo, PageInfo } from "./dialect";
+import type { Geometry } from "../types/geojson";
+
+// ---------------------------------------------------------------------------
+// WKB → GeoJSON parser for PostGIS geometry/geography
+// ---------------------------------------------------------------------------
+
+function hexToBuffer(hex: string): Buffer {
+  return Buffer.from(hex, "hex");
+}
+
+function parseWKB(wkbHex: string): Geometry | null {
+  if (!wkbHex || typeof wkbHex !== "string") return null;
+
+  const buf = hexToBuffer(wkbHex);
+  let offset = 0;
+
+  const readUInt8 = () => buf.readUInt8(offset++);
+  const readUInt32 = (le: boolean) => {
+    const v = le ? buf.readUInt32LE(offset) : buf.readUInt32BE(offset);
+    offset += 4;
+    return v;
+  };
+  const readDouble = (le: boolean) => {
+    const v = le ? buf.readDoubleLE(offset) : buf.readDoubleBE(offset);
+    offset += 8;
+    return v;
+  };
+
+  const endian = readUInt8();
+  const le = endian === 1;
+  const typeWithFlags = readUInt32(le);
+  const hasSRID = (typeWithFlags & 0x20000000) !== 0;
+  const typeCode = typeWithFlags & 0x1fffffff;
+
+  let srid = 0;
+  if (hasSRID) {
+    srid = readUInt32(le);
+  }
+
+  const readCoordinate = (l: boolean) => {
+    const x = readDouble(l);
+    const y = readDouble(l);
+    return [x, y];
+  };
+
+  const readPoint = (l: boolean) => ({
+    type: "Point",
+    coordinates: readCoordinate(l),
+  });
+
+  const readLineString = (l: boolean) => {
+    const numPoints = readUInt32(l);
+    const coords: number[][] = [];
+    for (let i = 0; i < numPoints; i++) {
+      coords.push(readCoordinate(l));
+    }
+    return coords;
+  };
+
+  const readPolygon = (l: boolean) => {
+    const numRings = readUInt32(l);
+    const rings: number[][][] = [];
+    for (let i = 0; i < numRings; i++) {
+      rings.push(readLineString(l));
+    }
+    return rings;
+  };
+
+  const subEndian = () => {
+    const e = readUInt8();
+    return e === 1;
+  };
+
+  const crs = srid
+    ? { type: "name", properties: { name: `EPSG:${srid}` } }
+    : undefined;
+
+  try {
+    switch (typeCode) {
+      case 1: // Point
+        return { ...readPoint(le), crs };
+      case 2: // LineString
+        return { type: "LineString", coordinates: readLineString(le), crs };
+      case 3: // Polygon
+        return { type: "Polygon", coordinates: readPolygon(le), crs };
+      case 4: { // MultiPoint
+        const numPoints = readUInt32(le);
+        const points: any[] = [];
+        for (let i = 0; i < numPoints; i++) {
+          const sle = subEndian();
+          readUInt32(sle); // skip type code
+          points.push(readPoint(sle));
+        }
+        return { type: "MultiPoint", coordinates: points.map(p => p.coordinates), crs };
+      }
+      case 5: { // MultiLineString
+        const numLines = readUInt32(le);
+        const lines: any[] = [];
+        for (let i = 0; i < numLines; i++) {
+          const sle = subEndian();
+          readUInt32(sle); // skip type code
+          lines.push(readLineString(sle));
+        }
+        return { type: "MultiLineString", coordinates: lines, crs };
+      }
+      case 6: { // MultiPolygon
+        const numPolys = readUInt32(le);
+        const polys: any[] = [];
+        for (let i = 0; i < numPolys; i++) {
+          const sle = subEndian();
+          readUInt32(sle); // skip type code
+          polys.push(readPolygon(sle));
+        }
+        return { type: "MultiPolygon", coordinates: polys, crs };
+      }
+      default:
+        return null;
+    }
+  } catch {
+    return null;
+  }
+}
+
+async function registerPostGISTypes(pool: any): Promise<void> {
+  try {
+    const { types } = require("pg");
+    // Query the actual OIDs from this database — hardcoded OIDs vary across PostGIS versions
+    const result = await pool.query(
+      "SELECT oid FROM pg_type WHERE typname IN ('geometry', 'geography')",
+    );
+    for (const row of result.rows) {
+      types.setTypeParser(row.oid, (val: string) => parseWKB(val));
+    }
+  } catch {
+    // PostGIS not installed or pg_type not accessible — geometry columns will return hex
+  }
+}
 
 // ---------------------------------------------------------------------------
 // PGConnection — wraps a `pg` Pool
@@ -10,9 +147,17 @@ import type { DatabaseDialect, DDLDialect, ColumnInfo, PageInfo } from "./dialec
 class PGConnection implements Connection {
   private pool: any;
   private transactionConn: any = null;
+  private showSql: boolean;
 
-  constructor(pool: any) {
+  constructor(pool: any, showSql = false) {
     this.pool = pool;
+    this.showSql = showSql;
+  }
+
+  private logSql(sql: string, params?: any[]): void {
+    if (!this.showSql) return;
+    console.log("[bun-db] SQL:", sql);
+    if (params && params.length > 0) console.log("[bun-db] PARAMS:", JSON.stringify(params));
   }
 
   /**
@@ -40,6 +185,7 @@ class PGConnection implements Connection {
   async execute(sql: string, params?: any[]): Promise<ExecuteResult> {
     const conn = this.transactionConn ?? this.pool;
     const converted = this.convertPlaceholders(sql);
+    this.logSql(converted, params);
     const result = await conn.query(converted, params);
     // If the SQL contains RETURNING, extract the generated value as insertId
     let insertId: number | bigint = 0;
@@ -60,6 +206,7 @@ class PGConnection implements Connection {
   async query<T = any>(sql: string, params?: any[]): Promise<T[]> {
     const conn = this.transactionConn ?? this.pool;
     const converted = this.convertPlaceholders(sql);
+    this.logSql(converted, params);
     const result = await conn.query(converted, params);
     return result.rows as T[];
   }
@@ -106,6 +253,8 @@ class PGConnection implements Connection {
 // ---------------------------------------------------------------------------
 
 class PGDDLDialect implements DDLDialect {
+  constructor(private mapType: (col: ColumnMetadata) => string) {}
+
   async tableExists(connection: Connection, tableName: string): Promise<boolean> {
     const rows = await connection.query<any>(
       `SELECT 1 FROM information_schema.tables WHERE table_schema = current_schema() AND table_name = $1 LIMIT 1`,
@@ -202,7 +351,7 @@ class PGDDLDialect implements DDLDialect {
   private buildColumnDef(col: ColumnMetadata): string {
     const parts: string[] = [];
     parts.push(`"${col.columnName}"`);
-    parts.push(col.databaseType);
+    parts.push(this.mapType(col));
 
     if (!col.nullable) parts.push("NOT NULL");
     if (col.isGenerated && col.generationType === "identity" as any) {
@@ -232,10 +381,10 @@ export class PgDialect implements DatabaseDialect {
       password: config.password,
       database: config.database,
       max: config.poolSize,
-      // Force UTC to match MySQL behaviour
-      // (pg-types defaults to local time for timestamptz)
     });
-    return new PGConnection(pool);
+    // Register PostGIS WKB parsers asynchronously — resolves before first user request
+    registerPostGISTypes(pool);
+    return new PGConnection(pool, config.showSql);
   }
 
   /**
@@ -259,6 +408,8 @@ export class PgDialect implements DatabaseDialect {
     if (t === "FLOAT") return "REAL";
     // DOUBLE → DOUBLE PRECISION
     if (t === "DOUBLE") return "DOUBLE PRECISION";
+    // PostGIS geometry / geography — pass through as-is
+    if (t.startsWith("GEOMETRY") || t === "GEOGRAPHY") return col.databaseType;
     // Pass-through: VARCHAR, TEXT, BIGINT, INTEGER, TIMESTAMP, BOOLEAN, etc.
     return col.databaseType;
   }
@@ -391,7 +542,7 @@ export class PgDialect implements DatabaseDialect {
   }
 
   getDDLGenerator(): DDLDialect {
-    return new PGDDLDialect();
+    return new PGDDLDialect(this.mapColumnType.bind(this));
   }
 
   // ------------------------------------------------------------------

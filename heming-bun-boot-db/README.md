@@ -11,6 +11,7 @@ Database ORM module for `heming-bun-boot` — JPA-style decorators, MyBatis-Plus
 - **Keyless Tables** — entities without `@Id` supported for append-only / log tables
 - **Type Inference** — `design:type` metadata → database column type (e.g., `number` → `BIGINT`, `string` → `VARCHAR(255)`)
 - **Snake Case Auto-Mapping** — `camelCase` property names → `snake_case` column names
+- **PostGIS Geometry Support** — Automatic WKB → GeoJSON parsing for `geometry` / `geography` columns (PostgreSQL), with typed `Geometry` exports
 - **Zero config** — reads `DB_HOST`, `DB_PORT`, etc. from `.env` automatically
 
 ## Installation
@@ -94,6 +95,7 @@ DB_USERNAME=root
 DB_PASSWORD=123456
 DB_DATABASE=test
 DB_DDL_AUTO=update
+DB_SHOW_SQL=true   # 开启 SQL 日志（默认 false）
 ```
 
 `.env` (PostgreSQL):
@@ -106,6 +108,7 @@ DB_USERNAME=postgres
 DB_PASSWORD=123456
 DB_DATABASE=test
 DB_DDL_AUTO=update
+DB_SHOW_SQL=true   # 开启 SQL 日志（默认 false）
 ```
 
 > **Dialect selection**: Set `DB_TYPE=postgres` (or `pg` / `postgresql`) to use PostgreSQL. Defaults to `mysql`.
@@ -123,6 +126,94 @@ DB_DDL_AUTO=update
 | `@UpdatedDate` / `@UpdatedDate()` | Property | Auto-set to `new Date()` on insert and update |
 | `@Transient` / `@Transient()` | Property | Exclude from persistence |
 | `@Enumerated(type)` | Property | Enum storage: `EnumType.STRING` or `EnumType.ORDINAL` |
+
+## PostGIS 几何类型支持
+
+当使用 PostgreSQL 方言时，框架会自动识别 PostGIS 的 `geometry` / `geography` 列，并将数据库返回的 WKB（Well-Known Binary）十六进制自动解析为 **GeoJSON** 对象。
+
+### 自动解析
+
+启动时框架会从 `pg_type` 查询 PostGIS geometry 类型的 OID，并注册对应的 `pg` 类型解析器。SELECT 查询中的 `geometry` 列会直接返回 GeoJSON：
+
+```json
+{
+  "type": "Point",
+  "coordinates": [117.985, 24.526],
+  "crs": { "type": "name", "properties": { "name": "EPSG:4326" } }
+}
+```
+
+### 实体定义
+
+```ts
+import type { Geometry } from "heming-bun-boot-db";
+
+@Table("demo_features")
+export class PgDemoFeaturesEntity {
+  @Id
+  @GeneratedValue(GenerationType.IDENTITY)
+  @Column({ comment: "PK" })
+  id!: number;
+
+  @Column({ length: 50, nullable: true })
+  name!: string;
+
+  // geometry 列 — 使用 @Column({ type: "geometry(...)" })
+  @Column({ type: "geometry(point, 4326)", nullable: true, comment: "坐标点" })
+  geom!: Geometry;
+}
+```
+
+### 支持的几何类型
+
+| 类型常量 | GeoJSON type | coordinates 结构 |
+|---------|-------------|------------------|
+| `Point` | `"Point"` | `[number, number]` |
+| `LineString` | `"LineString"` | `[number, number][]` |
+| `Polygon` | `"Polygon"` | `[number, number][][]` |
+| `MultiPoint` | `"MultiPoint"` | `[number, number][]` |
+| `MultiLineString` | `"MultiLineString"` | `[number, number][][]` |
+| `MultiPolygon` | `"MultiPolygon"` | `[number, number][][][]` |
+| `GeometryCollection` | `"GeometryCollection"` | `{ geometries: Geometry[] }` |
+
+所有类型都包含可选的 `crs?: GeoJsonCrs` 字段，携带 SRID 信息（如 `EPSG:4326`）。
+
+### 使用示例
+
+```ts
+import type { Point } from "heming-bun-boot-db";
+
+const features = await repo.selectList(
+  repo.queryBuilder().orderByDesc("id")
+);
+
+// 类型安全地使用几何数据
+for (const f of features) {
+  if (f.geom && f.geom.type === "Point") {
+    const [lng, lat] = f.geom.coordinates;
+    console.log(`坐标: (${lng}, ${lat})`);
+  }
+}
+```
+
+### GeoJSON 类型导出
+
+```ts
+import type {
+  Geometry,           // 联合类型
+  Point,
+  MultiPoint,
+  LineString,
+  MultiLineString,
+  Polygon,
+  MultiPolygon,
+  GeometryCollection,
+  Position,           // number[]
+  GeoJsonCrs,         // { type, properties }
+} from "heming-bun-boot-db";
+```
+
+> **无需引入第三方库** — WKB 解析器是框架内置的，零依赖。未安装 PostGIS 时几何列仍然可以正常 SELECT，只是返回十六进制 WKB 字符串。
 
 ## Default Type Mapping
 
@@ -148,6 +239,7 @@ Extend `BaseRepository<T>` for full CRUD:
 | Update | `updateById(entity)`, `updateBatchById(entities)`, `update(partial, query)` |
 | Delete | `deleteById(id)`, `deleteBatchIds(ids)`, `delete(query)` |
 | Select | `selectById(id)`, `selectBatchIds(ids)`, `selectOne(query)`, `selectList(query)`, `selectCount(query)`, `selectPage(page, query)`, `exists(query)` |
+| Native SQL | `queryRaw<T>(sql, params?)`, `queryRawOne<T>(sql, params?)`, `executeRaw(sql, params?)`, `getConnection()` |
 
 - `insert()` auto-fills `@CreatedDate` / `@UpdatedDate`, sets `@GeneratedValue` fields from `insertId`
 - `updateById()` auto-fills `@UpdatedDate`, implements optimistic locking with `@Version`
@@ -182,6 +274,44 @@ repo.queryBuilder()
 ```
 
 > **Important:** Column names in `QueryWrapper` calls are **snake_case** (database names), not camelCase property names. Use `"created_at"` not `"createdAt"`.
+
+## Native SQL（原生查询）
+
+对于复杂查询、窗口函数、CTE、存储过程、地理空间函数等场景，`BaseRepository` 直接暴露底层 `Connection` 的能力：
+
+```ts
+// SELECT — 返回任意类型行
+const rows = await repo.queryRaw<{ name: string; cnt: number }>(
+  "SELECT name, COUNT(*) AS cnt FROM users GROUP BY name HAVING COUNT(*) > ?",
+  [5],
+);
+
+// SELECT 单行
+const row = await repo.queryRawOne<{ total: number }>(
+  "SELECT COUNT(*) AS total FROM users",
+);
+
+// DML — INSERT / UPDATE / DELETE
+const result = await repo.executeRaw(
+  "DELETE FROM logs WHERE created_at < ?",
+  [thirtyDaysAgo],
+);
+console.log(result.affectedRows); // 删除行数
+
+// 完全原生访问 — 事务、驱动特性等
+const conn = repo.getConnection();
+await conn.beginTransaction();
+try {
+  await conn.execute("UPDATE accounts SET balance = balance - ? WHERE id = ?", [100, 1]);
+  await conn.execute("UPDATE accounts SET balance = balance + ? WHERE id = ?", [100, 2]);
+  await conn.commit();
+} catch (e) {
+  await conn.rollback();
+  throw e;
+}
+```
+
+> **参数占位符：** 始终使用 `?`，框架会自动转为 PostgreSQL 的 `$N`。不要手动写 `$1`, `$2`。
 
 ## Keyless Tables
 

@@ -43,8 +43,14 @@ export class PgUserController {
         return Result.ok(null, "user deleted");
     }
 
-    @Delete("/findAllGeom")
+    @Get("/findAllGeom")
     async findAllGeom() {
         return Result.ok(await this.pgUserService.findAllGeom());
+    }
+
+    @Get("/native")
+    async testNativeSql() {
+        const data = await this.pgUserService.testNativeSql();
+        return Result.ok(data, "native SQL test completed");
     }
 }

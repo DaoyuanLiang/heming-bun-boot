@@ -1,5 +1,5 @@
 import { EntityMetadataStorage, type EntityMetadata } from "../core/entity-metadata";
-import type { Connection } from "../core/connection";
+import type { Connection, ExecuteResult } from "../core/connection";
 import type { DatabaseDialect, PageInfo, PageResult } from "../dialect/dialect";
 import { QueryWrapper } from "./query-wrapper";
 
@@ -225,6 +225,39 @@ export class BaseRepository<T extends object> {
   async exists(query: QueryWrapper<T>): Promise<boolean> {
     const count = await this.selectCount(query);
     return count > 0;
+  }
+
+  // ==================== NATIVE SQL ====================
+
+  /**
+   * Execute a raw SQL query and return all rows.
+   * Use `?` placeholders for parameters (converted to `$N` on PostgreSQL).
+   */
+  async queryRaw<T = any>(sql: string, params?: any[]): Promise<T[]> {
+    return this.connection.query<T>(sql, params);
+  }
+
+  /**
+   * Execute a raw SQL query and return the first row, or `null`.
+   */
+  async queryRawOne<T = any>(sql: string, params?: any[]): Promise<T | null> {
+    return this.connection.queryOne<T>(sql, params);
+  }
+
+  /**
+   * Execute a raw DML statement (INSERT / UPDATE / DELETE).
+   * Returns affected rows, insertId, etc.
+   */
+  async executeRaw(sql: string, params?: any[]): Promise<ExecuteResult> {
+    return this.connection.execute(sql, params);
+  }
+
+  /**
+   * Get the underlying database connection for full native access
+   * (transactions, native driver methods, etc.).
+   */
+  getConnection(): Connection {
+    return this.connection;
   }
 
   // ==================== HELPERS ====================
