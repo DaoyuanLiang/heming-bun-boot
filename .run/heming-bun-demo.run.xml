@@ -1,8 +1,0 @@
-<component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="heming-bun-demo" type="BunRunConfiguration" editBeforeRun="true" focusToolWindowBeforeRun="true" singleton="false">
-    <option name="program" value="index.ts" />
-    <option name="stopOnEntry" value="true" />
-    <option name="workingDirectory" value="$PROJECT_DIR$/heming-bun-boot-demo" />
-    <method v="2" />
-  </configuration>
-</component>

@@ -7,3 +7,4 @@
 /heming-bun-boot-demo/node_modules/
 /heming-bun-boot-demo/heming-bun-boot-*.tgz
 /heming-bun-boot-ext/node_modules/
+/.run/
