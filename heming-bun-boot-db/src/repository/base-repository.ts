@@ -25,7 +25,7 @@ export class BaseRepository<T extends object> {
   }
 
   queryBuilder(): QueryWrapper<T> {
-    return new QueryWrapper<T>();
+    return new QueryWrapper<T>(this.dialect.escapeIdentifier.bind(this.dialect));
   }
 
   // ==================== INSERT ====================
@@ -70,7 +70,7 @@ export class BaseRepository<T extends object> {
     if (ids.length === 1) return this.deleteById(ids[0]);
 
     const pkCol = EntityMetadataStorage.requirePrimaryKey(this.metadata).columnName;
-    const qb = new QueryWrapper<T>();
+    const qb = new QueryWrapper<T>(this.dialect.escapeIdentifier.bind(this.dialect));
     qb.in(pkCol as keyof T & string, ids);
     const { sql: whereSql, params } = qb.buildWhere();
     const { sql, params: allParams } = this.dialect.buildDeleteByCondition(this.metadata, whereSql, params);
@@ -121,7 +121,7 @@ export class BaseRepository<T extends object> {
     for (const [key, value] of Object.entries(entity)) {
       const col = this.metadata.columns.get(key);
       if (col && col.updatable && !col.isPrimary) {
-        setPairs.push(`\`${col.columnName}\` = ?`);
+        setPairs.push(`${this.dialect.escapeIdentifier(col.columnName)} = ?`);
         setParams.push(value);
       }
     }
@@ -167,7 +167,8 @@ export class BaseRepository<T extends object> {
     const groupBy = query.getGroupBy();
     if (groupBy) {
       const having = query.getHaving();
-      let sql = `SELECT ${query.buildSelectColumns("*")} FROM \`${this.metadata.tableName}\``;
+      const table = this.dialect.escapeIdentifier(this.metadata.tableName);
+      let sql = `SELECT ${query.buildSelectColumns("*")} FROM ${table}`;
       if (whereSql) { sql += ` WHERE ${whereSql}`; }
       sql += ` GROUP BY ${groupBy}`;
       if (having.sql) { sql += ` HAVING ${having.sql}`; allParams.push(...having.params); }
@@ -175,7 +176,9 @@ export class BaseRepository<T extends object> {
       return rows.map(r => this.mapRow(r));
     }
 
-    const selectCols = query.buildSelectColumns([...this.metadata.columns.values()].map(c => `\`${c.columnName}\``).join(", "));
+    const selectCols = query.buildSelectColumns(
+      [...this.metadata.columns.values()].map(c => this.dialect.escapeIdentifier(c.columnName)).join(", "),
+    );
     const orderBy = query.buildOrderBy();
     const { sql, params } = this.dialect.buildSelectList(
       this.metadata, selectCols, whereSql, orderBy,
@@ -196,7 +199,7 @@ export class BaseRepository<T extends object> {
     const { sql: whereSql, params: whereParams } = query.buildWhere();
     const orderBy = query.buildOrderBy();
     const selectCols = query.buildSelectColumns(
-      [...this.metadata.columns.values()].map(c => `\`${c.columnName}\``).join(", "),
+      [...this.metadata.columns.values()].map(c => this.dialect.escapeIdentifier(c.columnName)).join(", "),
     );
 
     const [countResult, recordsResult] = await Promise.all([

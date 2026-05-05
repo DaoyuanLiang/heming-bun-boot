@@ -33,6 +33,7 @@ export type { DBConfig } from "./config/db-config";
 
 // Dialect
 export { MySQLDialect } from "./dialect/mysql-dialect";
+export { PgDialect } from "./dialect/pg-dialect";
 export type { DatabaseDialect, DDLDialect, ColumnInfo, PageInfo, PageResult } from "./dialect/dialect";
 
 // Repository

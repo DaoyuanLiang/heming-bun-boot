@@ -1,6 +1,6 @@
 # heming-bun-boot-db
 
-Database ORM module for `heming-bun-boot` — JPA-style decorators, MyBatis-Plus-style repository, and DDL auto-generation for MySQL.
+Database ORM module for `heming-bun-boot` — JPA-style decorators, MyBatis-Plus-style repository, and DDL auto-generation for MySQL and PostgreSQL.
 
 ## Features
 
@@ -15,8 +15,16 @@ Database ORM module for `heming-bun-boot` — JPA-style decorators, MyBatis-Plus
 
 ## Installation
 
+MySQL:
+
 ```bash
 bun add mysql2 reflect-metadata
+```
+
+PostgreSQL:
+
+```bash
+bun add pg reflect-metadata
 ```
 
 The DB module is used as a local dependency alongside `heming-bun-boot-ext`.
@@ -77,7 +85,7 @@ class UserRepository extends BaseRepository<User> {
 ExtApplication.run(appOptions, createDbHooks({ entities: [User] }));
 ```
 
-`.env`:
+`.env` (MySQL):
 
 ```env
 DB_HOST=localhost
@@ -87,6 +95,20 @@ DB_PASSWORD=123456
 DB_DATABASE=test
 DB_DDL_AUTO=update
 ```
+
+`.env` (PostgreSQL):
+
+```env
+DB_TYPE=postgres
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=123456
+DB_DATABASE=test
+DB_DDL_AUTO=update
+```
+
+> **Dialect selection**: Set `DB_TYPE=postgres` (or `pg` / `postgresql`) to use PostgreSQL. Defaults to `mysql`.
 
 ## Entity Decorators
 

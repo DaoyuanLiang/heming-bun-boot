@@ -1,6 +1,7 @@
 import type { ApplicationHooks } from "heming-bun-boot";
 
 import { MySQLDialect } from "./dialect/mysql-dialect";
+import { PgDialect } from "./dialect/pg-dialect";
 import type { DatabaseDialect } from "./dialect/dialect";
 import type { Connection } from "./core/connection";
 import { EntityMetadataStorage } from "./core/entity-metadata";
@@ -15,7 +16,7 @@ export interface DbStarterOptions {
   entities?: Function[];
   /** Database configuration. Falls back to env vars (DB_*). */
   db?: Partial<DBConfig>;
-  /** Custom dialect. Defaults to MySQLDialect. */
+  /** Custom dialect. Defaults to MySQLDialecbunt. */
   dialect?: DatabaseDialect;
 }
 
@@ -48,16 +49,31 @@ function resolveDBConfig(userConfig?: Partial<DBConfig>): DBConfig {
  * // With ext (logging + JWT + DB)
  * ExtApplication.run(appOptions, createDbHooks({ entities: [User] }));
  */
+function resolveDialect(userDialect?: DatabaseDialect, dbType?: string): DatabaseDialect {
+  if (userDialect) return userDialect;
+  const type = (dbType ?? "mysql").toLowerCase();
+  switch (type) {
+    case "pg":
+    case "postgres":
+    case "postgresql":
+      return new PgDialect();
+    case "mysql":
+    default:
+      return new MySQLDialect();
+  }
+}
+
 export function createDbHooks(options: DbStarterOptions = {}): ApplicationHooks {
-  const dialect = options.dialect ?? new MySQLDialect();
   const entityClasses = options.entities || [];
+  const partialConfig = resolveDBConfig(options.db);
+  const dialect = resolveDialect(options.dialect, partialConfig.type);
+  const config = partialConfig;
   let connection: Connection;
 
   return {
     builtinProviders: [],
     // @ts-ignore
     onInit: ({ container }) => {
-      const config = resolveDBConfig(options.db);
       connection = dialect.createConnection(config);
       container.registerValue(DIALECT_TOKEN, dialect);
       container.registerValue(CONNECTION_TOKEN, connection);

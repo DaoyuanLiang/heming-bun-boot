@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>PG User CRUD Test</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui; max-width: 600px; margin: 50px auto; padding: 20px; background: #f5f5f5; }
+    h1 { margin-bottom: 20px; color: #333; }
+    .card { background: #fff; border-radius: 8px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    .card h2 { font-size: 16px; margin-bottom: 12px; color: #666; }
+    input { width: 100%; padding: 10px; margin-bottom: 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+    button { padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-right: 8px; }
+    .btn-primary { background: #4f46e5; color: #fff; }
+    .btn-primary:hover { background: #4338ca; }
+    .btn-outline { background: #fff; color: #4f46e5; border: 1px solid #4f46e5; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    pre { background: #1e1e1e; color: #d4d4d4; padding: 16px; border-radius: 4px; overflow-x: auto; font-size: 13px; max-height: 400px; overflow-y: auto; white-space: pre-wrap; }
+    .flex { display: flex; gap: 8px; }
+  </style>
+</head>
+<body>
+  <h1>🐘 PG User CRUD</h1>
+
+  <!-- Create -->
+  <div class="card">
+    <h2>➕ 创建用户</h2>
+    <input id="c-name" placeholder="用户名" autocomplete="off">
+    <input id="c-email" placeholder="邮箱" autocomplete="off">
+    <button class="btn-primary" onclick="createUser()">创建</button>
+  </div>
+
+  <!-- List -->
+  <div class="card">
+    <h2>📋 用户列表</h2>
+    <button class="btn-outline" onclick="listUsers()">查询全部</button>
+    <button class="btn-outline" onclick="getUser()">按ID查询</button>
+    <input id="q-id" placeholder="用户 ID" style="width:120px;display:inline;margin-left:8px;">
+    <button class="btn-danger" onclick="deleteUser()" style="margin-left:8px;">删除</button>
+  </div>
+
+  <!-- Result -->
+  <div class="card">
+    <h2>📤 响应</h2>
+    <pre id="output">点击按钮发起请求...</pre>
+  </div>
+
+  <script>
+    const BASE = '/api/users';
+    const out = el('output');
+
+    function el(id) { return document.getElementById(id); }
+
+    async function createUser() {
+      const name = el('c-name').value.trim();
+      const email = el('c-email').value.trim();
+      if (!name || !email) return out.textContent = '请填写 name 和 email';
+      const res = await fetch(BASE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email })
+      });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+      el('c-name').value = ''; el('c-email').value = '';
+    }
+
+    async function listUsers() {
+      const res = await fetch(BASE);
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    }
+
+    async function getUser() {
+      const id = el('q-id').value.trim() || '1';
+      const res = await fetch(`${BASE}/${id}`);
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    }
+
+    async function deleteUser() {
+      const id = el('q-id').value.trim();
+      if (!id) return out.textContent = '请输入要删除的用户 ID';
+      const res = await fetch(`${BASE}/${id}`, { method: 'DELETE' });
+      out.textContent = JSON.stringify(await res.json(), null, 2);
+    }
+  </script>
+</body>
+</html>

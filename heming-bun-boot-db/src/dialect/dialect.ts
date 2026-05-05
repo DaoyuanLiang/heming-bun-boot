@@ -6,6 +6,11 @@ export interface DDLDialect {
   buildCreateTable(metadata: EntityMetadata): string;
   buildDropTable(tableName: string, ifExists?: boolean): string;
   buildAlterTable(metadata: EntityMetadata, existingColumns: Map<string, ColumnInfo>): string[];
+
+  /** Check whether a table exists in the current database/schema. */
+  tableExists(connection: Connection, tableName: string): Promise<boolean>;
+  /** Retrieve column metadata for an existing table. */
+  getExistingColumns(connection: Connection, tableName: string): Promise<Map<string, ColumnInfo>>;
 }
 
 export interface ColumnInfo {

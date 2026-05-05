@@ -11,6 +11,12 @@ interface ConditionGroup {
 }
 
 export class QueryWrapper<T = any> {
+  private escapeFn: (name: string) => string;
+
+  constructor(escapeIdentifier?: (name: string) => string) {
+    this.escapeFn = escapeIdentifier ?? ((name: string) => `\`${name}\``);
+  }
+
   private group: ConditionGroup = { conditions: [], nextOr: false };
   private orderByFields: string[] = [];
   private groupByFields: string[] = [];
@@ -112,7 +118,7 @@ export class QueryWrapper<T = any> {
   // ========== Logic ==========
 
   and(fn: (w: QueryWrapper<T>) => void): this {
-    const wrapper = new QueryWrapper<T>();
+    const wrapper = new QueryWrapper<T>(this.escapeFn);
     fn(wrapper);
     this.addNested("and", wrapper.group);
     return this;
@@ -120,7 +126,7 @@ export class QueryWrapper<T = any> {
 
   or(fn?: (w: QueryWrapper<T>) => void): this {
     if (fn) {
-      const wrapper = new QueryWrapper<T>();
+      const wrapper = new QueryWrapper<T>(this.escapeFn);
       fn(wrapper);
       this.addNested("or", wrapper.group);
     } else {
@@ -214,7 +220,9 @@ export class QueryWrapper<T = any> {
   // ========== Internal ==========
 
   private col(field: string): string {
-    return field.includes("`") || field.includes(".") ? field : `\`${field}\``;
+    // If already quoted (backtick or double-quote) or contains a dot (table.col), leave as-is
+    if (field.includes("`") || field.includes("\"") || field.includes(".")) return field;
+    return this.escapeFn(field);
   }
 
   private addCondition(sql: string, params: any[]): void {

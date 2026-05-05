@@ -67,6 +67,31 @@ class MySQLConnection implements Connection {
 // ---------- DDL ----------
 
 class MySQLDDLDialect implements DDLDialect {
+  async tableExists(connection: Connection, tableName: string): Promise<boolean> {
+    const rows = await connection.query<any>(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = ? LIMIT 1`,
+      [tableName],
+    );
+    return rows.length > 0;
+  }
+
+  async getExistingColumns(connection: Connection, tableName: string): Promise<Map<string, ColumnInfo>> {
+    const rows = await connection.query<any>(
+      `SHOW COLUMNS FROM \`${tableName}\``,
+    );
+    const map = new Map<string, ColumnInfo>();
+    for (const row of rows) {
+      map.set(row.Field, {
+        name: row.Field,
+        type: row.Type,
+        nullable: row.Null === "YES",
+        key: row.Key || "",
+        default: row.Default,
+        extra: row.Extra || "",
+      });
+    }
+    return map;
+  }
   buildCreateTable(metadata: EntityMetadata): string {
     const fields = [...metadata.columns.values()];
     const parts: string[] = [];
