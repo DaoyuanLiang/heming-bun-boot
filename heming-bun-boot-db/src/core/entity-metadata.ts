@@ -93,9 +93,7 @@ export class EntityMetadataStorage {
     }
 
     const storedColumns: StoredColumn[] =
-      Reflect.getMetadata(COLUMNS_METADATA, target.prototype) || [];
-    const tsDesignTypes: Record<string, Function> =
-      Reflect.getMetadata("design:type", target.prototype) || {};
+      Reflect.getMetadata(COLUMNS_METADATA, target) || [];
 
     const columns = new Map<string, ColumnMetadata>();
     const primaryKeys: ColumnMetadata[] = [];
@@ -107,7 +105,7 @@ export class EntityMetadataStorage {
     for (const stored of storedColumns) {
       if (stored.isTransient) continue;
 
-      const tsType = tsDesignTypes[stored.propertyKey] || Object;
+      const tsType = Reflect.getMetadata("design:type", target.prototype, stored.propertyKey) || Object;
       const colName = stored.options?.name ?? camelToSnake(stored.propertyKey);
       const databaseType = resolveDatabaseType(stored, tsType);
       const nullable = stored.options?.nullable ?? true;
@@ -150,10 +148,6 @@ export class EntityMetadataStorage {
       if (col.isUpdatedDate) updatedAtColumn = col;
     }
 
-    if (primaryKeys.length === 0) {
-      throw new Error(`Entity "${target.name}" has no @Id column`);
-    }
-
     const metadata: EntityMetadata = {
       target,
       tableName: tableMeta.name,
@@ -187,6 +181,16 @@ export class EntityMetadataStorage {
 
   static has(target: Function): boolean {
     return this.metadataMap.has(target);
+  }
+
+  static requirePrimaryKey(metadata: EntityMetadata): ColumnMetadata {
+    if (metadata.primaryKeys.length === 0) {
+      throw new Error(
+        `Entity "${metadata.target.name}" has no @Id column defined. ` +
+        `Operations requiring a primary key (deleteById, updateById, selectById, selectBatchIds) are not supported on keyless entities.`,
+      );
+    }
+    return metadata.primaryKeys[0];
   }
 
   static clear(): void {

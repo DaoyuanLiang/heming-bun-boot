@@ -2,9 +2,9 @@
 
 > 性能接近原生 Bun，开发体验接近 Spring Boot。
 
-[English](./README.md) | 中文文档
+[English](./README.md) | 中文文档 | [🤖 Agents.md](./agents.md) — AI 编码参考
 
-一个基于 **Bun + TypeScript + 装饰器** 的高性能 Web 框架，内置依赖注入，可选企业级扩展模块（日志、JWT 鉴权、统一响应格式）。
+一个基于 **Bun + TypeScript + 装饰器** 的高性能 Web 框架，内置依赖注入，可选企业级扩展模块（日志、JWT 鉴权、统一响应格式）和 JPA 风格数据库 ORM（DDL 自动生成）。
 
 ## 特性
 
@@ -25,6 +25,14 @@
 - **日志系统** — Winston 日志，控制台彩色输出，生产环境按天切割，`@Log()` 方法装饰器
 - **JWT 鉴权** — 签发/验证 token，`@UseGuard`/`@Public`/`@CurrentUser` 装饰器，Bearer token 提取
 - **请求追踪** — 每个请求生成 `traceId`（UUID v4），`X-Trace-Id` 响应头
+
+### 数据库模块 (`heming-bun-boot-db`)
+
+- **JPA 风格装饰器** — `@Table`、`@Column`、`@Id`、`@GeneratedValue`、`@Version`、`@CreatedDate`、`@UpdatedDate`、`@Transient`、`@Enumerated`
+- **MyBatis-Plus 风格 Repository** — `BaseRepository<T>` + 流式 `QueryWrapper<T>` 查询构造器（eq、ne、gt、lt、like、in、between、orderBy、groupBy、having、分页）
+- **自动 DDL** — 根据实体元数据生成 `CREATE TABLE IF NOT EXISTS`、`ALTER TABLE`（支持 create/update/validate/none 策略）
+- **乐观锁** — `@Version` 列，更新时检测并发冲突
+- **无主键表** — 支持没有 `@Id` 的实体，适用于日志/流水表
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "name": "heming-bun-boot-db",
-  "version": "0.1.0",
+  "version": "0.1.2",
   "description": "Database ORM module for heming-bun-boot — JPA-style decorators, high-performance CRUD, DDL auto-generation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",

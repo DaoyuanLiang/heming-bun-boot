@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — Heming Blog</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand"><a href="/">📝 Heming Blog</a></span>
+  <span id="nav-user"></span>
+</nav>
+
+<div class="container">
+  <div class="form">
+    <h1>Login</h1>
+    <div class="error" id="error" style="display:none"></div>
+    <label>Username</label>
+    <input id="name" placeholder="Enter username" autocomplete="username">
+    <label>Password</label>
+    <input id="password" type="password" placeholder="Enter password" autocomplete="current-password">
+    <button onclick="doLogin()">Login</button>
+    <div class="link">Don't have an account? <a href="/register.html">Sign up</a></div>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+if (api.isLoggedIn()) location.href = "/index.html";
+
+async function doLogin() {
+  const name = document.getElementById("name").value.trim();
+  const password = document.getElementById("password").value;
+  const err = document.getElementById("error");
+
+  if (!name || !password) {
+    err.textContent = "Please enter username and password";
+    err.style.display = "block";
+    return;
+  }
+
+  const res = await api.login(name, password);
+  if (res.code === 0) {
+    location.href = "/index.html";
+  } else {
+    err.textContent = res.message || "Login failed";
+    err.style.display = "block";
+  }
+}
+
+document.getElementById("password").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") doLogin();
+});
+</script>
+</body>
+</html>

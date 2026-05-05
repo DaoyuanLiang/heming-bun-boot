@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Post — Heming Blog</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand"><a href="/">📝 Heming Blog</a></span>
+  <span id="nav-user"></span>
+</nav>
+
+<div class="container" id="app">Loading...</div>
+
+<script src="/app.js"></script>
+<script>
+(async () => {
+  const id = new URLSearchParams(location.search).get("id");
+  if (!id) { location.href = "/index.html"; return; }
+
+  const res = await api.getPost(id);
+  const el = document.getElementById("app");
+
+  if (res.code !== 0) {
+    el.innerHTML = `<div class="empty"><h3>Post not found</h3><p><a href="/">Back to home</a></p></div>`;
+    return;
+  }
+
+  const p = res.data;
+  el.innerHTML = `
+    <div class="card post-detail">
+      <h2>${esc(p.title)}</h2>
+      <div class="meta">${esc(p.authorName)} · ${fmt(p.createdAt)}</div>
+      <div class="content">${esc(p.content)}</div>
+    </div>
+    <a class="back" href="/">← Back to home</a>
+  `;
+})();
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+function fmt(d) {
+  return d ? new Date(d).toLocaleString("en-US") : "";
+}
+</script>
+</body>
+</html>

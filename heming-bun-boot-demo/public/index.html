@@ -1,1 +1,55 @@
-<html><body><h1>Hello from static!</h1></body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heming Blog</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand"><a href="/">📝 Heming Blog</a></span>
+  <span id="nav-user"></span>
+</nav>
+
+<div class="container" id="app">
+  <h2 style="margin-bottom:20px">Latest Posts</h2>
+  <div id="post-list">Loading...</div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+(async () => {
+  const res = await api.getPosts();
+  const el = document.getElementById("post-list");
+
+  if (res.code !== 0 || !res.data.length) {
+    el.innerHTML = `<div class="empty"><h3>No posts yet</h3><p>Log in to write your first post</p></div>`;
+    return;
+  }
+
+  el.innerHTML = res.data.map(p => `
+    <div class="card">
+      <h2><a href="#" onclick="viewPost(${p.id});return false">${esc(p.title)}</a></h2>
+      <div class="meta">${esc(p.authorName)} · ${fmt(p.createdAt)}</div>
+    </div>
+  `).join("");
+})();
+
+function viewPost(id) {
+  window.location.href = `/post.html?id=${id}`;
+}
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function fmt(d) {
+  if (!d) return "";
+  return new Date(d).toLocaleString("en-US");
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Post — Heming Blog</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<nav>
+  <span class="brand"><a href="/">📝 Heming Blog</a></span>
+  <span id="nav-user"></span>
+</nav>
+
+<div class="container">
+  <div class="form">
+    <h1>New Post</h1>
+    <div class="error" id="error" style="display:none"></div>
+    <label>Title</label>
+    <input id="title" placeholder="Post title">
+    <label>Content</label>
+    <textarea id="content" placeholder="Write something..."></textarea>
+    <button onclick="doCreate()">Publish</button>
+  </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+if (!api.isLoggedIn()) location.href = "/login.html";
+
+async function doCreate() {
+  const title = document.getElementById("title").value.trim();
+  const content = document.getElementById("content").value.trim();
+  const err = document.getElementById("error");
+
+  if (!title || !content) {
+    err.textContent = "Title and content are required";
+    err.style.display = "block";
+    return;
+  }
+
+  const res = await api.createPost(title, content);
+  if (res.code === 0) {
+    location.href = "/index.html";
+  } else {
+    err.textContent = res.message || "Publish failed";
+    err.style.display = "block";
+  }
+}
+</script>
+</body>
+</html>

@@ -2,9 +2,9 @@
 
 A **Spring Boot-style web framework** for Bun with decorators and dependency injection.
 
-[中文文档](./README.zh-CN.md) | English
+[中文文档](./README.zh-CN.md) | English | [🤖 Agents.md](./agents.md) — AI coding reference
 
-A **Spring Boot-style web framework** for Bun with decorators and dependency injection, plus an optional enterprise extension module with logging, JWT auth, and unified response format.
+A **Spring Boot-style web framework** for Bun with decorators and dependency injection, plus an optional enterprise extension module with logging, JWT auth, and unified response format, and a JPA-style database ORM with DDL auto-generation.
 
 ## Features
 
@@ -25,6 +25,14 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 - **Logging** — Winston logger with console colorization, daily rotate file (prod), `@Log()` method decorator
 - **JWT Auth** — sign/verify tokens, `@UseGuard`/`@Public`/`@CurrentUser` decorators, Bearer token extraction
 - **Request Tracing** — `traceId` (UUID v4) on every request, `X-Trace-Id` response header
+
+### DB (`heming-bun-boot-db`)
+
+- **JPA-Style Decorators** — `@Table`, `@Column`, `@Id`, `@GeneratedValue`, `@Version`, `@CreatedDate`, `@UpdatedDate`, `@Transient`, `@Enumerated`
+- **MyBatis-Plus-Style Repository** — `BaseRepository<T>` with fluent `QueryWrapper<T>` builder (eq, ne, gt, lt, like, in, between, orderBy, groupBy, having, pagination)
+- **Auto DDL** — `CREATE TABLE IF NOT EXISTS`, `ALTER TABLE` generation from entity metadata (create/update/validate/none strategies)
+- **Optimistic Locking** — `@Version` column with stale-update detection
+- **Keyless Tables** — entities without `@Id` supported for append-only / log tables
 
 ---
 

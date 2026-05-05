@@ -59,6 +59,7 @@ export class BaseRepository<T extends object> {
   // ==================== DELETE ====================
 
   async deleteById(id: any): Promise<number> {
+    EntityMetadataStorage.requirePrimaryKey(this.metadata);
     const { sql, params } = this.dialect.buildDeleteById(this.metadata, id);
     const result = await this.connection.execute(sql, params);
     return result.affectedRows;
@@ -68,7 +69,7 @@ export class BaseRepository<T extends object> {
     if (ids.length === 0) return 0;
     if (ids.length === 1) return this.deleteById(ids[0]);
 
-    const pkCol = this.metadata.primaryKeys[0].columnName;
+    const pkCol = EntityMetadataStorage.requirePrimaryKey(this.metadata).columnName;
     const qb = new QueryWrapper<T>();
     qb.in(pkCol as keyof T & string, ids);
     const { sql: whereSql, params } = qb.buildWhere();
@@ -87,6 +88,7 @@ export class BaseRepository<T extends object> {
   // ==================== UPDATE ====================
 
   async updateById(entity: T): Promise<number> {
+    EntityMetadataStorage.requirePrimaryKey(this.metadata);
     this.fillDates(entity, false);
     if (this.metadata.versionColumn) {
       const vc = this.metadata.versionColumn;
@@ -134,6 +136,7 @@ export class BaseRepository<T extends object> {
   // ==================== SELECT ====================
 
   async selectById(id: any): Promise<T | null> {
+    EntityMetadataStorage.requirePrimaryKey(this.metadata);
     const { sql, params } = this.dialect.buildSelectById(this.metadata, id);
     const row = await this.connection.queryOne<Record<string, any>>(sql, params);
     return row ? this.mapRow(row) : null;
@@ -145,6 +148,7 @@ export class BaseRepository<T extends object> {
       const r = await this.selectById(ids[0]);
       return r ? [r] : [];
     }
+    EntityMetadataStorage.requirePrimaryKey(this.metadata);
     const { sql, params } = this.dialect.buildSelectByIds(this.metadata, ids);
     const rows = await this.connection.query<Record<string, any>>(sql, params);
     return rows.map(r => this.mapRow(r));
@@ -234,7 +238,8 @@ export class BaseRepository<T extends object> {
   }
 
   private getIdValue(entity: T): any {
-    return (entity as any)[this.metadata.primaryKeys[0].propertyKey];
+    const pk = EntityMetadataStorage.requirePrimaryKey(this.metadata);
+    return (entity as any)[pk.propertyKey];
   }
 
   private mapRow(row: Record<string, any>): T {
