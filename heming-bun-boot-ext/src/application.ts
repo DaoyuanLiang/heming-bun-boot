@@ -24,21 +24,32 @@ export type ExtApplicationOptions = ApplicationOptions;
  * Delegates to core Application.run() with framework hooks.
  *
  * Provides: logging, JWT auth, unified Result responses, exception handling.
+ *
+ * @param options - Application options
+ * @param externalHooks - Optional hooks from other modules (e.g. DB starter).
+ *   External builtinProviders are registered before ext's own.
  */
 export class ExtApplication {
-  static async run(options: ApplicationOptions): Promise<void> {
+  static async run(options: ApplicationOptions, externalHooks?: ApplicationHooks): Promise<void> {
     let logger: LoggerService;
 
     const hooks: ApplicationHooks = {
-      builtinProviders: [LoggerService, JwtService, JwtAuthGuard],
+      builtinProviders: [
+        ...(externalHooks?.builtinProviders ?? []),
+        LoggerService,
+        JwtService,
+        JwtAuthGuard,
+      ],
 
       onInit: ({ container }) => {
+        externalHooks?.onInit?.({ container });
         logger = container.resolve(LoggerService);
         setLoggerForDecorator(logger);
-        // JwtService is resolved lazily inside the auth middleware
       },
 
       routeHandlerFactory: (container) => {
+        const externalHandler = externalHooks?.routeHandlerFactory?.(container);
+
         return async (ctx: Context): Promise<Response> => {
           const match = ctx.route!;
           const injector = new RequestInjector(container);
@@ -61,7 +72,12 @@ export class ExtApplication {
 
           const result = await handler.apply(controller, args);
 
-          // Result wrapping
+          // If external handler wants to normalize (e.g. DB result wrapping), let it
+          if (externalHandler) {
+            return externalHandler(ctx);
+          }
+
+          // Default ext: Result wrapping
           if (result instanceof Response) return result;
           if (result instanceof Result) return ctx.json(result);
           if (result === null || result === undefined) {
@@ -72,13 +88,14 @@ export class ExtApplication {
       },
 
       builtinMiddlewares: (container): Middleware[] => [
+        ...(externalHooks?.builtinMiddlewares?.(container) ?? []),
         createExceptionFilter(logger),
         createRequestIdMiddleware(),
         createLoggerMiddleware(logger),
         createAuthMiddleware((guardClass) => container.resolve(guardClass)),
       ],
 
-      onNotFound: (request) => {
+      onNotFound: externalHooks?.onNotFound ?? ((request) => {
         const url = new URL(request.url);
         const ctx = new Context(request, {}, url.searchParams);
         (ctx as any)._traceId = crypto.randomUUID();
@@ -88,9 +105,9 @@ export class ExtApplication {
         return ctx.json(
           new Result(404, `Cannot ${request.method} ${url.pathname}`, null)
         );
-      },
+      }),
 
-      onError: (error, request) => {
+      onError: externalHooks?.onError ?? ((error, request) => {
         logger.error("Unhandled exception in fetch", {
           error: error.message,
           stack: error.stack,
@@ -98,7 +115,7 @@ export class ExtApplication {
         const url = new URL(request.url);
         const ctx = new Context(request, {}, url.searchParams);
         return ctx.json(new Result(500, "Internal Server Error", null));
-      },
+      }),
     };
 
     await Application.run(options, hooks);

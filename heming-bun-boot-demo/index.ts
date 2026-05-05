@@ -20,8 +20,63 @@ import {
   BadRequestException,
 } from "heming-bun-boot-ext";
 import type { JwtPayload } from "heming-bun-boot-ext";
+import {
+  Table,
+  Column,
+  Id,
+  GeneratedValue,
+  CreatedDate,
+  UpdatedDate,
+  GenerationType,
+  BaseRepository,
+  createDbHooks,
+  CONNECTION_TOKEN,
+  DIALECT_TOKEN,
+} from "heming-bun-boot-db";
+import type { Connection, DatabaseDialect } from "heming-bun-boot-db";
 
-// ─── Configuration ───────────────────────────────────────
+// ─── Entity ────────────────────────────────────────────────
+@Table("users", { comment: "用户表" })
+class User {
+  @Id
+  @GeneratedValue(GenerationType.IDENTITY)
+  @Column({ comment: "主键" })
+  id!: number;
+
+  @Column({ length: 50, nullable: false, unique: true, comment: "用户名" })
+  name!: string;
+
+  @Column({ length: 255, nullable: false, comment: "密码" })
+  password!: string;
+
+  @Column({ length: 50, nullable: false, comment: "角色" })
+  role!: string;
+
+  @CreatedDate
+  @Column()
+  createdAt!: Date;
+
+  @UpdatedDate
+  @Column()
+  updatedAt!: Date;
+}
+
+// ─── Repository ────────────────────────────────────────────
+@Injectable()
+class UserRepository extends BaseRepository<User> {
+  constructor(
+    @Inject(DIALECT_TOKEN) dialect: DatabaseDialect,
+    @Inject(CONNECTION_TOKEN) connection: Connection,
+  ) {
+    super(User, dialect, connection);
+  }
+
+  async findByName(name: string): Promise<User | null> {
+    return this.selectOne(this.queryBuilder().eq("name", name));
+  }
+}
+
+// ─── Configuration ─────────────────────────────────────────
 @Configuration()
 class AppConfig {
   @Value("PORT", 3000)
@@ -34,48 +89,65 @@ class AppConfig {
   jwtExpiresIn!: string;
 }
 
-// ─── Service Layer ───────────────────────────────────────
+// ─── Service Layer ─────────────────────────────────────────
 @Injectable()
 class UserService {
-  private users = [
-    { id: "1", name: "Alice", role: "admin" },
-    { id: "2", name: "Bob", role: "user" },
-  ];
+  constructor(private repo: UserRepository) {}
 
-  findAll() {
-    return this.users.map(({ id, name, role }) => ({ id, name, role }));
+  async findAll(): Promise<User[]> {
+    return this.repo.selectList(this.repo.queryBuilder().orderByDesc("createdAt"));
   }
 
-  findById(id: string) {
-    const user = this.users.find((u) => u.id === id);
+  async findById(id: number): Promise<User> {
+    const user = await this.repo.selectById(id);
     if (!user) throw new NotFoundException(`User ${id} not found`);
-    return { id: user.id, name: user.name, role: user.role };
+    return user;
   }
 
-  validateCredentials(name: string) {
-    return this.users.find((u) => u.name === name) || null;
+  async validateCredentials(name: string, password: string): Promise<User | null> {
+    const user = await this.repo.findByName(name);
+    if (!user || user.password !== password) return null;
+    return user;
+  }
+
+  async create(name: string, password: string, role: string = "user"): Promise<User> {
+    const user = new User();
+    user.name = name;
+    user.password = password;
+    user.role = role;
+    await this.repo.insert(user);
+    return user;
   }
 }
 
-// ─── Controllers ─────────────────────────────────────────
+// ─── Controllers ───────────────────────────────────────────
 
 @Controller("/auth")
 class AuthController {
   constructor(
     @Inject() private jwtService: JwtService,
-    @Inject() private userService: UserService
+    @Inject() private userService: UserService,
   ) {}
 
   @Post("/login")
   async login({ request }: Context) {
-    const { name } = await request.json();
-    if (!name) throw new BadRequestException("name is required");
+    const { name, password } = await request.json();
+    if (!name || !password) throw new BadRequestException("name and password are required");
 
-    const user = this.userService.validateCredentials(name);
-    if (!user) throw new BadRequestException("invalid user");
+    const user = await this.userService.validateCredentials(name, password);
+    if (!user) throw new BadRequestException("invalid credentials");
 
-    const token = this.jwtService.sign({ sub: user.id, name: user.name, role: user.role });
+    const token = this.jwtService.sign({ sub: String(user.id), name: user.name, role: user.role });
     return Result.ok({ token, user: { id: user.id, name: user.name } }, "login success");
+  }
+
+  @Post("/register")
+  async register({ request }: Context) {
+    const { name, password, role } = await request.json();
+    if (!name || !password) throw new BadRequestException("name and password are required");
+
+    const user = await this.userService.create(name, password, role);
+    return Result.ok({ id: user.id, name: user.name, role: user.role }, "register success");
   }
 }
 
@@ -85,13 +157,15 @@ class UserController {
   constructor(@Inject() private userService: UserService) {}
 
   @Get()
-  listUsers() {
-    return Result.ok(this.userService.findAll());
+  async listUsers() {
+    const users = await this.userService.findAll();
+    return Result.ok(users.map(u => ({ id: u.id, name: u.name, role: u.role, createdAt: u.createdAt })));
   }
 
   @Get("/:id")
-  getUser({ params }: Context) {
-    return Result.ok(this.userService.findById(params.id));
+  async getUser({ params }: Context) {
+    const user = await this.userService.findById(Number(params.id));
+    return Result.ok({ id: user.id, name: user.name, role: user.role, createdAt: user.createdAt });
   }
 
   @Get("/me")
@@ -112,17 +186,23 @@ class RootController {
     return Result.ok({
       status: "ok",
       uptime: Bun.nanoseconds(),
-      framework: "heming-bun-boot + ext",
+      framework: "heming-bun-boot + ext + db",
     });
   }
 }
 
-// ─── Bootstrap ───────────────────────────────────────────
-ExtApplication.run({
-  controllers: [RootController, AuthController, UserController],
-  providers: [UserService],
-  configurations: [AppConfig],
-  static: { assets: "public", prefix: "/" },
-}).then(()=>{
+// ─── Bootstrap ─────────────────────────────────────────────
+ExtApplication.run(
+  {
+    controllers: [RootController, AuthController, UserController],
+    providers: [UserService, UserRepository],
+    configurations: [AppConfig],
+    static: { assets: "public", prefix: "/" },
+  },
+  createDbHooks({ entities: [User] }),
+).then(() => {
   console.log("Server started");
+  console.log("  POST /auth/register  — create user { name, password, role? }");
+  console.log("  POST /auth/login     — login { name, password } → JWT token");
+  console.log("  GET  /users          — list all users (auth required)");
 });

@@ -1,7 +1,7 @@
 {
-  "name": "heming-bun-boot-ext",
-  "version": "0.1.2",
-  "description": "Enterprise extensions for heming-bun-boot — logging, JWT auth, unified response format",
+  "name": "heming-bun-boot-db",
+  "version": "0.1.0",
+  "description": "Database ORM module for heming-bun-boot — JPA-style decorators, high-performance CRUD, DDL auto-generation",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
@@ -12,12 +12,12 @@
   ],
   "keywords": [
     "bun",
-    "web",
-    "framework",
-    "jwt",
-    "logging",
-    "winston",
-    "auth"
+    "orm",
+    "database",
+    "mysql",
+    "jpa",
+    "mybatis-plus",
+    "ddl"
   ],
   "license": "MIT",
   "repository": {
@@ -26,16 +26,14 @@
   },
   "homepage": "https://github.com/DaoyuanLiang/heming-bun-boot#readme",
   "dependencies": {
-    "winston": "^3.17.0",
-    "winston-daily-rotate-file": "^5.0.0",
-    "jsonwebtoken": "^9.0.2"
+    "mysql2": "^3.14.0"
   },
   "peerDependencies": {
-    "heming-bun-boot": ">=0.1.0"
+    "heming-bun-boot": ">=0.1.0",
+    "reflect-metadata": "*"
   },
   "devDependencies": {
     "heming-bun-boot": "file:../heming-bun-boot-core",
-    "@types/bun": "^1.3.13",
-    "@types/jsonwebtoken": "^9.0.9"
+    "@types/bun": "^1.3.13"
   }
 }
