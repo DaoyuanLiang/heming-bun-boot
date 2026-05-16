@@ -1,3 +1,5 @@
+import { AUTO_REGISTRY } from "../di/registry";
+
 // Metadata keys for controller decorators
 export const CONTROLLER_PREFIX = Symbol("bun-boot:controller-prefix");
 export const CONTROLLER_ROUTES = Symbol("bun-boot:controller-routes");
@@ -9,5 +11,6 @@ export const CONTROLLER_ROUTES = Symbol("bun-boot:controller-routes");
 export function Controller(prefix: string = ""): ClassDecorator {
   return (target: any) => {
     Reflect.defineMetadata(CONTROLLER_PREFIX, prefix, target);
+    AUTO_REGISTRY.controllers.add(target);
   };
 }

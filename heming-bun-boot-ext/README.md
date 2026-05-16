@@ -7,20 +7,20 @@
 - **Unified Response** — `Result<T>` format (`{ code, message, data, timestamp, traceId }`)
 - **Exception Handling** — `HttpException` family (7 types), automatic conversion to `Result.fail()`
 - **Logging** — Winston logger with console colorization, daily rotate file (prod), `@Log()` method decorator
-- **JWT Auth** — sign/verify tokens, `@UseGuard`/`@Public`/`@CurrentUser` decorators, Bearer token extraction
+- **JWT Auth** — sign/verify tokens with `UserPayload`, `@UseGuard`/`@Public`/`@CurrentUser` decorators, Bearer token extraction, multi-guard support at class and method level
 - **Request Tracing** — `traceId` (UUID v4) on every request, `X-Trace-Id` response header
 
 ## Quick Start
 
 ```bash
-bun add @heming/bun-boot-ext reflect-metadata
-# @heming/bun-boot is included as a peer dependency
+bun add heming-bun-boot-ext reflect-metadata
+# heming-bun-boot is included as a peer dependency
 ```
 
 ```typescript
 import "reflect-metadata";
-import { Controller, Get, Post, Injectable, Inject, Context } from "@heming/bun-boot";
-import { ExtApplication, Result, JwtService, UseGuard, JwtAuthGuard, NotFoundException } from "@heming/bun-boot-ext";
+import { Controller, Get, Post, Injectable, Inject, Context } from "heming-bun-boot";
+import { ExtApplication, Result, JwtService, UseGuard, JwtAuthGuard, NotFoundException } from "heming-bun-boot-ext";
 
 @Injectable()
 class UserService {
@@ -39,7 +39,7 @@ class AuthController {
   @Post("/login")
   async login({ request }: Context) {
     const { name } = await request.json();
-    const token = this.jwtService.sign({ sub: "1", name, role: "admin" });
+    const token = this.jwtService.sign({ id: "1", name, role: "admin" });
     return Result.ok({ token }, "login success");
   }
 }
@@ -54,10 +54,15 @@ class UserController {
   }
 }
 
+// Explicit registration (original)
 ExtApplication.run({
   controllers: [AuthController, UserController],
   providers: [UserService],
 });
+
+// Or auto-discovery — no explicit arrays needed:
+// ExtApplication.run({ scan: ["src/controller", "src/service"] });
+// ExtApplication.run();  // pure registry mode
 ```
 
 ## Response Format

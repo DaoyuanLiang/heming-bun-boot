@@ -1,8 +1,8 @@
 import { Injectable } from "heming-bun-boot";
 import type { Context } from "heming-bun-boot";
-import { JwtService } from "./jwt.service";
-import type { JwtPayload } from "./jwt.service";
-import { AUTH_GUARD, PUBLIC_ROUTE } from "./auth.decorators";
+import { JwtService, normalizeUserPayload } from "./jwt.service";
+import type { JwtPayload, UserPayload } from "./jwt.service";
+import { AUTH_GUARD, AUTH_GUARD_METHOD, PUBLIC_ROUTE, type AuthGuardConstructor } from "./auth.decorators";
 import { UnauthorizedException } from "../result/exceptions";
 
 /**
@@ -17,15 +17,15 @@ export interface AuthGuard {
  * @UseGuard and @Public decorators on the matched controller/route.
  */
 export function createAuthMiddleware(
-  guardResolver: (guardClass: new (...args: any[]) => AuthGuard) => AuthGuard
+  guardResolver: (guardClass: AuthGuardConstructor) => AuthGuard
 ): import("heming-bun-boot").Middleware {
   return async (ctx: Context, next: () => Promise<Response>) => {
     const match = ctx.route;
     if (!match) return next();
 
-    const guardClass: new (...args: any[]) => AuthGuard | undefined =
+    const classGuards: AuthGuardConstructor[] | undefined =
       Reflect.getMetadata(AUTH_GUARD, match.controllerClass);
-    if (!guardClass) return next();
+    if (!classGuards || classGuards.length === 0) return next();
 
     // Check if this specific route is marked @Public
     const publicRoutes: (string | symbol)[] =
@@ -34,11 +34,19 @@ export function createAuthMiddleware(
       return next();
     }
 
-    // Run the guard
-    const guard = guardResolver(guardClass);
-    const allowed = await guard.canActivate(ctx);
-    if (!allowed) {
-      throw new UnauthorizedException();
+    // Merge class-level and method-level guards
+    const methodGuards: Record<string | symbol, AuthGuardConstructor[]> | undefined =
+      Reflect.getMetadata(AUTH_GUARD_METHOD, match.controllerClass);
+    const methodGuardList = methodGuards?.[match.handlerName];
+    const allGuards = methodGuardList ? [...classGuards, ...methodGuardList] : classGuards;
+
+    // Run all guards sequentially
+    for (const guardClass of allGuards) {
+      const guard = guardResolver(guardClass);
+      const allowed = await guard.canActivate(ctx);
+      if (!allowed) {
+        throw new UnauthorizedException();
+      }
     }
 
     return next();
@@ -66,8 +74,8 @@ export class JwtAuthGuard implements AuthGuard {
     const payload = this.jwtService.verify(token);
     if (!payload) return false;
 
-    // Attach user to context for @CurrentUser() and downstream use
-    (ctx as any).user = payload;
+    // Attach normalized user to context for @CurrentUser() and downstream use
+    (ctx as any).user = normalizeUserPayload(payload);
 
     return true;
   }

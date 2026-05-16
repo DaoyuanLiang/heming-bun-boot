@@ -31,6 +31,7 @@ export { DIContainer } from "./di/container";
 export type { ProviderDefinition } from "./di/container";
 export { RequestInjector } from "./di/injector";
 export { Scope } from "./di/scope";
+export { AUTO_REGISTRY } from "./di/registry";
 
 // Router
 export { Router } from "./router/router";

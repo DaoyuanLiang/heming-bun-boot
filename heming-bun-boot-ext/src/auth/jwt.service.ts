@@ -8,9 +8,34 @@ export interface JwtPayload {
   [key: string]: any;
 }
 
+/**
+ * Business-friendly user payload for signing JWT tokens.
+ * Use this instead of raw JwtPayload in application code.
+ *
+ * @example
+ * jwtService.sign({ id: "123", role: "admin" });
+ */
+export interface UserPayload {
+  id: string;
+  email?: string;
+  role?: string;
+  [key: string]: any;
+}
+
 export interface JwtSignOptions {
   expiresIn?: string | number;
   algorithm?: jwt.Algorithm;
+}
+
+/**
+ * Normalize a decoded JWT payload so that `id` always exists.
+ * If the token was signed with `sub`, it becomes `id`; if `id` was used directly, it stays.
+ */
+export function normalizeUserPayload(payload: Record<string, any>): UserPayload {
+  return {
+    ...payload,
+    id: payload.id || payload.sub,
+  };
 }
 
 /**
@@ -28,11 +53,17 @@ export class JwtService {
   }
 
   /**
-   * Sign a JWT token with the given payload.
+   * Sign a JWT token with the given user payload.
+   * `id` is automatically mapped to the standard JWT `sub` claim.
    */
-  sign(payload: Omit<JwtPayload, "iat" | "exp">, options?: JwtSignOptions): string {
-    // @ts-ignore
-    return jwt.sign(payload as object, this.secret, {
+  sign(payload: UserPayload, options?: JwtSignOptions): string {
+    const jwtPayload: Record<string, any> = {
+      ...payload,
+      sub: payload.id,
+    };
+    delete jwtPayload.id;
+
+    return jwt.sign(jwtPayload as object, this.secret, {
       expiresIn: options?.expiresIn ?? this.expiresIn,
       algorithm: options?.algorithm ?? "HS256",
     });

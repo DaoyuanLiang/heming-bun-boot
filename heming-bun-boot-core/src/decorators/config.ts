@@ -1,3 +1,5 @@
+import { AUTO_REGISTRY } from "../di/registry";
+
 export const CONFIGURATION_MARKER = Symbol("bun-boot:configuration");
 export const VALUE_METADATA = Symbol("bun-boot:value-metadata");
 
@@ -14,6 +16,7 @@ export interface ValueMetadata {
 export function Configuration(): ClassDecorator {
   return (target: any) => {
     Reflect.defineMetadata(CONFIGURATION_MARKER, true, target);
+    AUTO_REGISTRY.configurations.add(target);
   };
 }
 

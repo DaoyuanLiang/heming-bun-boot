@@ -11,7 +11,8 @@
 ### 核心模块 (`heming-bun-boot`)
 
 - **注解式开发** — `@Controller`、`@Get`、`@Post`、`@Put`、`@Delete`、`@Patch`、`@Injectable`、`@Inject`、`@Configuration`、`@Value`
-- **依赖注入** — 构造函数注入、单例/请求作用域、循环依赖检测
+- **自动发现** — 装饰器自动注册类；`Application.run({ scan: [...] })` 或直接 `Application.run()`
+- **依赖注入** — 构造函数注入、单例/请求/瞬态作用域、循环依赖检测
 - **Express 风格中间件** — `(ctx, next) => Response` 链式调用，Koa 式组合
 - **静态文件服务** — MIME 自动检测（40+ 类型），目录遍历防护，路由匹配优先
 - **自动配置** — `.env` 文件加载、环境变量默认值与类型转换
@@ -202,9 +203,9 @@ class AuthController {
     const user = this.userService.validateCredentials(name);
     if (!user) throw new BadRequestException("用户不存在");
 
-    const token = this.jwtService.sign({
-      sub: user.id, name: user.name, role: user.role
-    });
+    const token = this.jwtService.sign(
+      { id: String(user.id), name: user.name, role: user.role },
+    );
     return Result.ok({ token, user }, "登录成功");
   }
 }
@@ -255,6 +256,42 @@ LOG_LEVEL=debug
 
 ---
 
+## 快速开始（声明式 / 自动发现）
+
+装饰器不变，无需手动注册 —— `Application.run()` 自动收集所有装饰类：
+
+```typescript
+import "reflect-metadata";
+import { Application, Controller, Get, Injectable, Context } from "heming-bun-boot";
+
+@Injectable()
+class UserService {
+  findAll() { return [{ id: "1", name: "Alice" }, { id: "2", name: "Bob" }]; }
+}
+
+@Controller("/users")
+class UserController {
+  constructor(private userService: UserService) {}
+
+  @Get()
+  list() { return this.userService.findAll(); }
+}
+
+// 自动发现模式 —— 无需显式数组
+Application.run();
+
+// 或配合文件系统扫描：
+// Application.run({ scan: ["src/controller", "src/service"] });
+
+// 显式数组仍可使用，与自动发现的类合并：
+// Application.run({
+//   scan: ["src/controller"],
+//   providers: [CustomService],  // 与发现的类合并
+// });
+```
+
+---
+
 ## 装饰器参考
 
 ### HTTP 路由
@@ -289,7 +326,7 @@ handleUser({ params, request }: Context) { ... }
 
 | 装饰器 | 目标 | 说明 |
 |--------|------|------|
-| `@Injectable(scope?)` | 类 | 标记可注入类。作用域：`"singleton"`（默认）或 `"request"` |
+| `@Injectable(scope?)` | 类 | 标记可注入类。作用域：`"singleton"`（默认）、`"request"` 或 `"transient"` |
 | `@Inject(token?)` | 参数 | 指定注入令牌。不填则通过类型推断自动识别 |
 
 ```typescript
@@ -311,6 +348,7 @@ class UserController {
 **作用域规则：**
 - Singleton 为默认值，实例在应用生命周期内缓存复用
 - Request 作用域每个 HTTP 请求创建新实例
+- Transient 作用域每次注入/解析都创建新实例，不缓存
 - Singleton 不能依赖 Request 作用域（启动时检测并报错）
 
 ### 配置
@@ -534,10 +572,11 @@ class UserService {
 
 ### JWT 鉴权
 
-**JwtService** — 自动注册，从环境变量读取 `JWT_SECRET` 和 `JWT_EXPIRES_IN`：
+**JwtService** — 自动注册，从环境变量读取 `JWT_SECRET` 和 `JWT_EXPIRES_IN`。使用 `UserPayload` 签名（用 `id` 替代 `sub`）：
 
 ```typescript
 import { JwtService } from "heming-bun-boot-ext";
+import type { UserPayload } from "heming-bun-boot-ext";
 
 @Injectable()
 class AuthService {
@@ -545,7 +584,7 @@ class AuthService {
 
   login(user: User) {
     const token = this.jwtService.sign(
-      { sub: user.id, name: user.name, role: user.role },
+      { id: String(user.id), name: user.name, role: user.role },
       { expiresIn: "2h" }  // 可选覆盖
     );
     return { token };
@@ -554,6 +593,7 @@ class AuthService {
   validate(token: string) {
     const payload = this.jwtService.verify(token);
     if (!payload) throw new UnauthorizedException("token 无效");
+    // normalizeUserPayload 确保 `id` 字段始终存在
     return payload;
   }
 }
@@ -563,13 +603,13 @@ class AuthService {
 
 | 装饰器 | 目标 | 说明 |
 |--------|------|------|
-| `@UseGuard(GuardClass)` | 类 | 对控制器所有路由启用鉴权 |
+| `@UseGuard(...GuardClasses)` | 类/方法 | 应用一个或多个守卫（类级或方法级） |
 | `@Public()` | 方法 | 跳过鉴权（白名单） |
-| `@CurrentUser()` | 参数 | 将 JWT 负载注入处理器参数 |
+| `@CurrentUser()` | 参数 | 将 `UserPayload` 注入处理器参数 |
 
 ```typescript
 import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "heming-bun-boot-ext";
-import type { JwtPayload } from "heming-bun-boot-ext";
+import type { UserPayload } from "heming-bun-boot-ext";
 
 @Controller("/users")
 @UseGuard(JwtAuthGuard)         // 所有接口需要鉴权
@@ -579,14 +619,19 @@ class UserController {
   listUsers() { ... }           // 需要鉴权
 
   @Get("/me")
-  getProfile(@CurrentUser() user: JwtPayload) {
-    // user.sub、user.name、user.role 可用
-    return Result.ok({ id: user.sub, name: user.name });
+  getProfile(@CurrentUser() user: UserPayload) {
+    // user.id、user.name、user.role 可用
+    return Result.ok({ id: user.id, name: user.name });
   }
 
   @Get("/public")
   @Public()                     // 此接口跳过鉴权
   publicData() { ... }
+
+  // 方法级多守卫：组合 JwtAuthGuard + RoleGuard
+  @UseGuard(RoleGuard)
+  @Delete("/:id")
+  async remove() { ... }
 }
 ```
 
@@ -604,10 +649,15 @@ class ApiKeyGuard implements AuthGuard {
   }
 }
 
-// 使用：
+// 单守卫：
 @Controller("/admin")
 @UseGuard(ApiKeyGuard)
 class AdminController { ... }
+
+// 多守卫（依次执行，全部通过才放行）：
+@Controller("/super-admin")
+@UseGuard(JwtAuthGuard, ApiKeyGuard)
+class SuperAdminController { ... }
 ```
 
 ---
@@ -666,7 +716,7 @@ class AppConfig {
 }
 ```
 
-类型通过属性的 TypeScript 类型注解（`design:type` 元数据）自动推断。
+类型通过属性的 TypeScript 类型注解（`design:type` 元数据）自动推断。默认值也会参与类型转换 —— `@Value("PORT", "3002") port!: number` 得到的是数字 `3002` 而非字符串 `"3002"`。
 
 ---
 
@@ -678,6 +728,7 @@ Application.run({
   controllers?: Function[];      // 控制器类
   providers?: Function[];        // 可注入服务
   configurations?: Function[];   // @Configuration 配置类
+  scan?: string[];               // 自动扫描的目录路径
   middlewares?: Middleware[];    // 自定义中间件链
   static?: StaticOptions;        // 静态文件服务（如 { assets: "public", prefix: "/" }）
   port?: number;                 // 覆盖端口（最高优先级）
@@ -740,18 +791,16 @@ Application.run({
 ┌──────────────────────────────────────────────────────────┐
 │              Application.run(options, hooks)               │
 ├──────────────────────────────────────────────────────────┤
-│  ModuleScanner    │  DIContainer   │  ConfigLoader        │
-│  (自动扫描)        │  (IoC 容器)    │  (环境变量 → 配置)    │
+│  AUTO_REGISTRY    │  ModuleScanner  │  DIContainer        │
+│  (装饰器 →        │  (FS 扫描)      │  (IoC 容器)         │
+│   Set<Function>)  │                 │                     │
 ├──────────────────────────────────────────────────────────┤
-│                      中间件链                             │
-│  (内置 → 用户中间件 → 路由处理器)                          │
+│  ConfigLoader     │  中间件链                              │
+│  (环境变量→配置)  │  (内置 → 用户 → 路由处理器)             │
 ├──────────────────────────────────────────────────────────┤
 │                       路由器                              │
 │  静态路由: Map<key, entry> — O(1)                         │
 │  参数路由: 逐段比较 — O(R × S)                             │
-├──────────────────────────────────────────────────────────┤
-│                      静态文件                             │
-│  路由未匹配时的回退（MIME 检测 + 目录遍历检查）             │
 ├──────────────────────────────────────────────────────────┤
 │                      Bun.serve()                          │
 │                   (原生 HTTP 服务器)                       │
@@ -828,6 +877,7 @@ bun-project/
 │       ├── di/
 │       │   ├── container.ts           # DI 容器
 │       │   ├── injector.ts            # 请求作用域注入器
+│       │   ├── registry.ts            # AUTO_REGISTRY（装饰器 → Set）
 │       │   └── scope.ts               # Scope 枚举
 │       ├── decorators/
 │       │   ├── controller.ts          # @Controller

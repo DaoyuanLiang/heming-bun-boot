@@ -61,6 +61,11 @@ export class Router {
       result = "/";
     }
 
+    // Match matcher.ts: strip trailing slash, but keep root "/"
+    if (result.length > 1 && result.endsWith("/")) {
+      result = result.slice(0, -1);
+    }
+
     return result;
   }
 }

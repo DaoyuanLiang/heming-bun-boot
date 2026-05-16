@@ -30,7 +30,7 @@ export type ExtApplicationOptions = ApplicationOptions;
  *   External builtinProviders are registered before ext's own.
  */
 export class ExtApplication {
-  static async run(options: ApplicationOptions, externalHooks?: ApplicationHooks): Promise<void> {
+  static async run(options: ApplicationOptions = {}, externalHooks?: ApplicationHooks): Promise<any> {
     let logger: LoggerService;
 
     const hooks: ApplicationHooks = {
@@ -118,6 +118,6 @@ export class ExtApplication {
       }),
     };
 
-    await Application.run(options, hooks);
+    return Application.run(options, hooks);
   }
 }

@@ -15,6 +15,8 @@ heming-bun-boot-demo — Reference blog application
 
 ## Bootstrapping
 
+### Explicit mode (original)
+
 ```ts
 import "reflect-metadata";
 import { ExtApplication } from "heming-bun-boot-ext";
@@ -30,6 +32,30 @@ ExtApplication.run(
   createDbHooks({ entities: [User, Post] }),
 );
 ```
+
+### Declarative mode (auto-discovery)
+
+Decorators automatically register classes. `AUTO_REGISTRY` collects them at import time.
+
+```ts
+import "reflect-metadata";
+import { ExtApplication } from "heming-bun-boot-ext";
+import { createDbHooks } from "heming-bun-boot-db";
+
+// No explicit arrays — decorators handle registration
+ExtApplication.run({ scan: ["src/controller", "src/service", "src/config"] }, createDbHooks({ entities: [User, Post] }));
+
+// Or pure registry mode (no filesystem scan):
+// ExtApplication.run(...);
+
+// Explicit arrays still work and merge with discovered classes:
+// ExtApplication.run(
+//   { scan: ["src/controller"], providers: [CustomService], ... },
+//   createDbHooks(...),
+// );
+```
+
+Merge priority: `explicit > AUTO_REGISTRY > FS scan`. `AUTO_REGISTRY` is exported from `heming-bun-boot` for test cleanup: `AUTO_REGISTRY.controllers.clear()`.
 
 ## DI Tokens (from DB module)
 

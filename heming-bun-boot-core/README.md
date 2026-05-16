@@ -7,7 +7,7 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 ## Features
 
 - **Decorator-based** — `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`, `@Injectable`, `@Inject`, `@Configuration`, `@Value`
-- **Dependency Injection** — constructor injection, singleton/request scopes, circular dependency detection
+- **Dependency Injection** — constructor injection, singleton/request/transient scopes, circular dependency detection
 - **Express-like Middleware** — `(ctx, next) => Response` chain, Koa-style compose
 - **Static File Serving** — MIME detection (40+ types), directory traversal protection
 - **Auto-configuration** — `.env` file loading, env vars with defaults and type coercion

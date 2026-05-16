@@ -9,11 +9,20 @@ import { compose, type Middleware } from "./middleware";
 import { serveStatic, type StaticOptions } from "./static";
 import { INJECTABLE_SCOPE } from "./decorators/inject";
 import type { ScopeType } from "./decorators/inject";
+import { ModuleScanner } from "./scanner/module-scanner";
+import type { ScanResult } from "./scanner/module-scanner";
+import { AUTO_REGISTRY } from "./di/registry";
 
 export interface ApplicationOptions {
   controllers?: Function[];
   providers?: Function[];
   configurations?: Function[];
+  /**
+   * Directory paths to scan for decorated classes.
+   * When provided, classes are auto-discovered from filesystem + decorator registry,
+   * then merged with explicit arrays (explicit > registry > scan).
+   */
+  scan?: string[];
   middlewares?: Middleware[];
   /** Serve static files from a directory. Route matching takes priority. */
   static?: StaticOptions;
@@ -47,11 +56,22 @@ const SERVER_ERROR = new Response("Internal Server Error", { status: 500 });
  * Framework entry point. Orchestrates DI, config, routing, and Bun.serve().
  *
  * @example
- * // Core usage
+ * // Explicit mode (original)
  * Application.run({
  *   controllers: [UserController],
  *   providers: [UserService],
  *   configurations: [AppConfig],
+ * });
+ *
+ * @example
+ * // Declarative mode — auto-discover from decorator registry + scan paths
+ * Application.run({ scan: ["src/controller", "src/service"] });
+ *
+ * @example
+ * // Mixed mode — scan + explicit overrides
+ * Application.run({
+ *   scan: ["src/controller"],
+ *   providers: [CustomService],
  * });
  *
  * @example
@@ -64,11 +84,36 @@ const SERVER_ERROR = new Response("Internal Server Error", { status: 500 });
  * });
  */
 export class Application {
-  static async run(options: ApplicationOptions, hooks?: ApplicationHooks): Promise<void> {
-    const controllers = options.controllers || [];
-    const providers = options.providers || [];
-    const configurations = options.configurations || [];
-    const userMiddlewares = options.middlewares || [];
+  static async run(options: ApplicationOptions = {}, hooks?: ApplicationHooks): Promise<any> {
+    // ── Auto-discovery phase ──────────────────────────────────────
+    let controllers = options.controllers ?? [];
+    let providers = options.providers ?? [];
+    let configurations = options.configurations ?? [];
+
+    const hasExplicit = "controllers" in options || "providers" in options || "configurations" in options;
+    const dedupe = (arr: Function[]) => [...new Set(arr)];
+
+    if (options.scan) {
+      // Mode A: scan FS + registry + explicit
+      const scanned: ScanResult = await ModuleScanner.scan({
+        controllers: options.scan,
+        providers: options.scan,
+        configurations: options.scan,
+      });
+      controllers = dedupe([...scanned.controllers, ...AUTO_REGISTRY.controllers, ...(options.controllers ?? [])]);
+      providers = dedupe([...scanned.providers, ...AUTO_REGISTRY.providers, ...(options.providers ?? [])]);
+      configurations = dedupe([...scanned.configurations, ...AUTO_REGISTRY.configurations, ...(options.configurations ?? [])]);
+      options = { ...options, scan: undefined, controllers, providers, configurations };
+    } else if (!hasExplicit) {
+      // Mode B: no explicit classes, no scan — auto-discover from registry only
+      controllers = [...AUTO_REGISTRY.controllers];
+      providers = [...AUTO_REGISTRY.providers];
+      configurations = [...AUTO_REGISTRY.configurations];
+      options = { ...options, controllers, providers, configurations };
+    }
+    // Mode C: explicit arrays only (hasExplicit && !scan) — original behavior, unchanged
+
+    const userMiddlewares = options.middlewares ?? [];
 
     // 0. Load .env file
     ConfigLoader.loadEnvFile();
@@ -162,7 +207,7 @@ export class Application {
     });
 
     // 10. Start server
-    Bun.serve({
+    const server = Bun.serve({
       port,
       hostname,
       fetch: async (request: Request) => {
@@ -194,5 +239,6 @@ export class Application {
     });
 
     console.log(`[bun-boot] Server running at http://localhost:${port}`);
+    return server;
   }
 }
