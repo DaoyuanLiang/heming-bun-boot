@@ -79,7 +79,9 @@ export class ConfigLoader {
     defaultVal: any,
     type: Function
   ): any {
-    if (raw === undefined) return defaultVal;
+    if (raw === undefined) {
+      return this.coerce(String(defaultVal), undefined, type);
+    }
 
     switch (type) {
       case Number:

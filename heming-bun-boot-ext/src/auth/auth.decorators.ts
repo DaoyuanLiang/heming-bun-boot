@@ -1,17 +1,47 @@
 import type { AuthGuard } from "./auth.guard";
 
 export const AUTH_GUARD = Symbol("bun-boot-ext:auth-guard");
+export const AUTH_GUARD_METHOD = Symbol("bun-boot-ext:auth-guard-method");
 export const PUBLIC_ROUTE = Symbol("bun-boot-ext:public-route");
 export const CURRENT_USER_INDEX = Symbol("bun-boot-ext:current-user-index");
 
+export type AuthGuardConstructor = new (...args: any[]) => AuthGuard;
+
 /**
- * Apply an AuthGuard to a controller. All routes require authentication
- * unless explicitly marked @Public().
+ * Apply one or more AuthGuards to a controller class or method.
+ * All routes require authentication unless explicitly marked @Public().
+ *
+ * Multiple guards run in order; any guard that throws or returns false
+ * denies the request.
+ *
+ * @example
+ * // Class-level: all routes need JwtAuthGuard
+ * @UseGuard(JwtAuthGuard)
+ * @Controller("/admin")
+ * class AdminController {
+ *
+ *   // Method-level: this route additionally needs RoleGuard
+ *   @UseGuard(RoleGuard)
+ *   @Delete("/:id")
+ *   async remove() { ... }
+ *
+ *   // Inherits class-level guards only
+ *   @Get("/")
+ *   async list() { ... }
+ * }
  */
-export function UseGuard(guard: new (...args: any[]) => AuthGuard): ClassDecorator {
-  return (target: any) => {
-    Reflect.defineMetadata(AUTH_GUARD, guard, target);
+export function UseGuard(...guards: AuthGuardConstructor[]): ClassDecorator & MethodDecorator {
+  const decorator = (target: any, propertyKey?: string | symbol) => {
+    if (propertyKey !== undefined) {
+      const existing: Record<string | symbol, AuthGuardConstructor[]> =
+        Reflect.getMetadata(AUTH_GUARD_METHOD, target.constructor) || {};
+      existing[propertyKey] = guards;
+      Reflect.defineMetadata(AUTH_GUARD_METHOD, existing, target.constructor);
+    } else {
+      Reflect.defineMetadata(AUTH_GUARD, guards, target);
+    }
   };
+  return decorator as ClassDecorator & MethodDecorator;
 }
 
 /**
@@ -28,12 +58,12 @@ export function Public(): MethodDecorator {
 }
 
 /**
- * Inject the current user (JWT payload) into a handler parameter.
+ * Inject the current user (normalized UserPayload) into a handler parameter.
  * The value is resolved from `ctx.user` before the handler is called.
  *
  * @example
  * @Get("/me")
- * getProfile(@CurrentUser() user: JwtPayload) { ... }
+ * getProfile(@CurrentUser() user: UserPayload) { ... }
  */
 export function CurrentUser(): ParameterDecorator {
   return (

@@ -11,7 +11,7 @@ A **Spring Boot-style web framework** for Bun with decorators and dependency inj
 ### Core (`heming-bun-boot`)
 
 - **Decorator-based** — `@Controller`, `@Get`, `@Post`, `@Put`, `@Delete`, `@Patch`, `@Injectable`, `@Inject`, `@Configuration`, `@Value`
-- **Dependency Injection** — constructor injection, singleton/request scopes, circular dependency detection
+- **Dependency Injection** — constructor injection, singleton/request/transient scopes, circular dependency detection
 - **Express-like Middleware** — `(ctx, next) => Response` chain, Koa-style compose
 - **Static File Serving** — MIME detection (40+ types), directory traversal protection, route matching takes priority
 - **Auto-configuration** — `.env` file loading, env vars with defaults and type coercion
@@ -197,9 +197,9 @@ class AuthController {
     const user = this.userService.validateCredentials(name);
     if (!user) throw new BadRequestException("invalid credentials");
 
-    const token = this.jwtService.sign({
-      sub: user.id, name: user.name, role: user.role
-    });
+    const token = this.jwtService.sign(
+      { id: String(user.id), name: user.name, role: user.role },
+    );
     return Result.ok({ token, user }, "login success");
   }
 }
@@ -284,7 +284,7 @@ handleUser({ params, request }: Context) { ... }
 
 | Decorator | Target | Description |
 |-----------|--------|-------------|
-| `@Injectable(scope?)` | Class | Marks a class for DI. Scope: `"singleton"` (default) or `"request"` |
+| `@Injectable(scope?)` | Class | Marks a class for DI. Scope: `"singleton"` (default), `"request"`, or `"transient"` |
 | `@Inject(token?)` | Parameter | Specifies injection token. Falls back to type inference if omitted |
 
 ```typescript
@@ -306,6 +306,7 @@ class UserController {
 **Scope rules:**
 - Singleton is the default. Instance cached for app lifetime.
 - Request scope creates a new instance per HTTP request.
+- Transient scope always creates a new instance on every injection/resolution.
 - Singleton cannot depend on Request scope (detected at startup).
 
 ### Configuration
@@ -529,10 +530,11 @@ class UserService {
 
 ### JWT Authentication
 
-**JwtService** — auto-registered, reads `JWT_SECRET` and `JWT_EXPIRES_IN` from env:
+**JwtService** — auto-registered, reads `JWT_SECRET` and `JWT_EXPIRES_IN` from env. Signs with `UserPayload` (uses `id` instead of raw `sub`):
 
 ```typescript
 import { JwtService } from "heming-bun-boot-ext";
+import type { UserPayload } from "heming-bun-boot-ext";
 
 @Injectable()
 class AuthService {
@@ -540,7 +542,7 @@ class AuthService {
 
   login(user: User) {
     const token = this.jwtService.sign(
-      { sub: user.id, name: user.name, role: user.role },
+      { id: String(user.id), name: user.name, role: user.role },
       { expiresIn: "2h" }  // optional override
     );
     return { token };
@@ -549,6 +551,7 @@ class AuthService {
   validate(token: string) {
     const payload = this.jwtService.verify(token);
     if (!payload) throw new UnauthorizedException("invalid token");
+    // normalizeUserPayload ensures `id` is always present
     return payload;
   }
 }
@@ -558,12 +561,13 @@ class AuthService {
 
 | Decorator | Target | Description |
 |-----------|--------|-------------|
-| `@UseGuard(GuardClass)` | Class | Apply auth guard to all routes in controller |
+| `@UseGuard(...GuardClasses)` | Class/Method | Apply one or more auth guards (class or method level) |
 | `@Public()` | Method | Skip auth for a specific route |
-| `@CurrentUser()` | Parameter | Inject JWT payload into handler parameter |
+| `@CurrentUser()` | Parameter | Inject `UserPayload` into handler parameter |
 
 ```typescript
 import { UseGuard, Public, CurrentUser, JwtAuthGuard } from "heming-bun-boot-ext";
+import type { UserPayload } from "heming-bun-boot-ext";
 
 @Controller("/users")
 @UseGuard(JwtAuthGuard)         // All routes require authentication
@@ -573,14 +577,19 @@ class UserController {
   listUsers() { ... }           // Requires auth
 
   @Get("/me")
-  getProfile(@CurrentUser() user: JwtPayload) {
-    // user.sub, user.name, user.role are available
-    return Result.ok({ id: user.sub, name: user.name });
+  getProfile(@CurrentUser() user: UserPayload) {
+    // user.id, user.name, user.role are available
+    return Result.ok({ id: user.id, name: user.name });
   }
 
   @Get("/public")
   @Public()                     // This route skips auth
   publicData() { ... }
+
+  // Method-level multi-guard: runs JwtAuthGuard + RoleGuard
+  @UseGuard(RoleGuard)
+  @Delete("/:id")
+  async remove() { ... }
 }
 ```
 
@@ -598,10 +607,15 @@ class ApiKeyGuard implements AuthGuard {
   }
 }
 
-// Use it:
+// Single guard:
 @Controller("/admin")
 @UseGuard(ApiKeyGuard)
 class AdminController { ... }
+
+// Multiple guards (runs in order, all must pass):
+@Controller("/super-admin")
+@UseGuard(JwtAuthGuard, ApiKeyGuard)
+class SuperAdminController { ... }
 ```
 
 ---
@@ -660,7 +674,7 @@ class AppConfig {
 }
 ```
 
-Types are inferred from the property's TypeScript type annotation (`design:type` metadata).
+Types are inferred from the property's TypeScript type annotation (`design:type` metadata). Default values are also coerced — `@Value("PORT", "3002") port!: number` gives numeric `3002`, not the string `"3002"`.
 
 ---
 

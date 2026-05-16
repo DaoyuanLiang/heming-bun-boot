@@ -25,8 +25,8 @@ export { createLoggerMiddleware } from "./logging/logger.middleware";
 export { createRequestIdMiddleware } from "./middleware/request-id";
 
 // Auth
-export { JwtService } from "./auth/jwt.service";
-export type { JwtPayload, JwtSignOptions } from "./auth/jwt.service";
+export { JwtService, normalizeUserPayload } from "./auth/jwt.service";
+export type { JwtPayload, UserPayload, JwtSignOptions } from "./auth/jwt.service";
 export { JwtAuthGuard, createAuthMiddleware } from "./auth/auth.guard";
 export type { AuthGuard } from "./auth/auth.guard";
 export {
@@ -34,6 +34,7 @@ export {
   Public,
   CurrentUser,
   AUTH_GUARD,
+  AUTH_GUARD_METHOD,
   PUBLIC_ROUTE,
   CURRENT_USER_INDEX,
 } from "./auth/auth.decorators";

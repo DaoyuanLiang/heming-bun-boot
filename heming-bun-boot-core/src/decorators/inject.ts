@@ -1,11 +1,11 @@
 export const INJECTABLE_SCOPE = Symbol("bun-boot:injectable-scope");
 export const INJECT_PARAMS = Symbol("bun-boot:inject-params");
 
-export type ScopeType = "singleton" | "request";
+export type ScopeType = "singleton" | "request" | "transient";
 
 /**
  * Marks a class as injectable by the DI container.
- * @param scope - "singleton" (default) or "request"
+ * @param scope - "singleton" (default), "request", or "transient"
  */
 export function Injectable(scope: ScopeType = "singleton"): ClassDecorator {
   return (target: any) => {

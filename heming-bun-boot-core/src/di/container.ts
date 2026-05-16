@@ -12,16 +12,23 @@ export interface ProviderDefinition {
 }
 
 /**
- * Lightweight IoC container with singleton/request scopes and cycle detection.
+ * Lightweight IoC container with singleton/request/transient scopes and cycle detection.
  */
 export class DIContainer {
   private providers = new Map<string | Function, ProviderDefinition>();
   private resolving = new Set<string | Function>();
 
+  private toScopeEnum(scope?: ScopeType): Scope {
+    switch (scope) {
+      case "transient": return Scope.TRANSIENT;
+      case "request":   return Scope.REQUEST;
+      default:          return Scope.SINGLETON;
+    }
+  }
+
   /** Register a class-based provider. */
   registerClass(token: string | Function, cls: Function, scope?: ScopeType): void {
-    const scopeEnum =
-      scope === "request" ? Scope.REQUEST : Scope.SINGLETON;
+    const scopeEnum = this.toScopeEnum(scope);
     this.providers.set(token, {
       token,
       useClass: cls,
@@ -42,8 +49,7 @@ export class DIContainer {
 
   /** Register a factory-based provider for lazy instantiation. */
   registerFactory(token: string | Function, factory: () => any, scope: ScopeType = "singleton"): void {
-    const scopeEnum =
-      scope === "request" ? Scope.REQUEST : Scope.SINGLETON;
+    const scopeEnum = this.toScopeEnum(scope);
     this.providers.set(token, {
       token,
       useFactory: factory,
@@ -83,6 +89,9 @@ export class DIContainer {
 
       // Factory provider
       if (definition.useFactory) {
+        if (definition.scope === Scope.TRANSIENT) {
+          return definition.useFactory();
+        }
         if (definition.scope === Scope.SINGLETON) {
           if (!definition.resolved) {
             definition.instance = definition.useFactory();
@@ -100,6 +109,9 @@ export class DIContainer {
       }
 
       // Class provider
+      if (definition.scope === Scope.TRANSIENT) {
+        return this.constructInstance(definition, requestContext);
+      }
       if (definition.scope === Scope.SINGLETON && definition.instance !== undefined) {
         return definition.instance;
       }
