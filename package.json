@@ -1,0 +1,12 @@
+{
+  "name": "heming-bun-boot-workspace",
+  "private": true,
+  "workspaces": [
+    "heming-bun-boot-core",
+    "heming-bun-boot-ext",
+    "heming-bun-boot-db",
+    "heming-bun-boot-demo",
+    "heming-bun-boot-demo-auto",
+    "heming-bun-boot-demo-pg"
+  ]
+}

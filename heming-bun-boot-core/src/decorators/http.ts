@@ -1,4 +1,4 @@
-import { CONTROLLER_ROUTES } from "./controller";
+import { CONTROLLER_ROUTES, routeBridge } from "./controller";
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
 
@@ -10,7 +10,14 @@ export interface RouteDefinition {
 
 function createMethodDecorator(method: HttpMethod) {
   return (path: string = ""): MethodDecorator => {
-    return (target: Object, propertyKey: string | symbol) => {
+    return (target: any, propertyKey: any) => {
+      // Stage 3 (Bun): target is the method function, propertyKey is DecoratorContext
+      if (propertyKey?.kind) {
+        routeBridge.add({ method, path, handlerName: propertyKey.name as string });
+        return;
+      }
+
+      // Legacy experimental (tsc): target is the prototype
       const routes: RouteDefinition[] =
         Reflect.getMetadata(CONTROLLER_ROUTES, target.constructor) || [];
       routes.push({ method, path, handlerName: propertyKey as string });

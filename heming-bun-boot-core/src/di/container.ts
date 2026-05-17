@@ -1,5 +1,5 @@
 import { Scope } from "./scope";
-import { INJECTABLE_SCOPE, INJECT_PARAMS, type ScopeType } from "../decorators/inject";
+import { INJECTABLE_SCOPE, INJECT_PARAMS, INJECT_DEPS, type ScopeType } from "../decorators/inject";
 
 export interface ProviderDefinition {
   token: string | Function;
@@ -137,16 +137,30 @@ export class DIContainer {
     const cls = definition.useClass!;
     const paramTypes: Function[] =
       Reflect.getMetadata("design:paramtypes", cls) || [];
-    const paramTokens: (string | undefined)[] =
+    const paramTokens: (string | Function | undefined)[] =
       Reflect.getMetadata(INJECT_PARAMS, cls) || [];
 
-    const args = paramTypes.map((paramType, index) => {
-      const customToken = paramTokens[index];
+    const classDeps: (string | Function)[] =
+      Reflect.getMetadata(INJECT_DEPS, cls) || [];
+    const paramCount = Math.max(paramTypes.length, paramTokens.length, classDeps.length, cls.length);
+    const args: any[] = [];
+
+    for (let i = 0; i < paramCount; i++) {
+      const customToken = paramTokens[i];
       if (customToken) {
-        return this.resolve(customToken, requestContext);
+        args.push(this.resolve(customToken, requestContext));
+      } else if (paramTypes[i]) {
+        args.push(this.resolve(paramTypes[i], requestContext));
+      } else if (classDeps[i]) {
+        args.push(this.resolve(classDeps[i], requestContext));
+      } else {
+        throw new Error(
+          `Cannot resolve parameter ${i} of "${cls.name}". ` +
+          `Bun's Stage 3 decorators do not emit design:paramtypes and parameter decorators are not supported. ` +
+          `Pass deps via @Injectable({ deps: [YourService] }) or @Controller(prefix, { deps: [...] }).`
+        );
       }
-      return this.resolve(paramType, requestContext);
-    });
+    }
 
     return new (cls as any)(...args);
   }

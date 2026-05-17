@@ -80,10 +80,14 @@ export class ConfigLoader {
     type: Function
   ): any {
     if (raw === undefined) {
-      return this.coerce(String(defaultVal), undefined, type);
+      // When design:type is unavailable (Bun Stage 3 drops emitDecoratorMetadata),
+      // infer type from the default value.
+      const inferredType = type ?? (defaultVal != null ? defaultVal.constructor : String);
+      return this.coerce(String(defaultVal), undefined, inferredType);
     }
 
-    switch (type) {
+    const t = type ?? (defaultVal != null ? defaultVal.constructor : undefined);
+    switch (t) {
       case Number:
         return Number(raw);
       case Boolean:
@@ -91,7 +95,7 @@ export class ConfigLoader {
       case String:
         return raw;
       default:
-        return raw;
+        return Number(raw) || raw;
     }
   }
 }

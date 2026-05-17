@@ -34,7 +34,7 @@
     "heming-bun-boot": ">=0.1.0"
   },
   "devDependencies": {
-    "heming-bun-boot": "file:../heming-bun-boot-core",
+    "heming-bun-boot": "workspace:*",
     "@types/bun": "^1.3.13",
     "@types/jsonwebtoken": "^9.0.9"
   }

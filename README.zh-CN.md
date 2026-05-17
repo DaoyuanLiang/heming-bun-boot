@@ -292,6 +292,25 @@ Application.run();
 
 ---
 
+## 二进制构建兼容性
+
+使用 `bun build --compile` 生成的二进制文件中**不包含 `.ts` 源文件**，不同自动发现模式的兼容性：
+
+| 模式 | 二进制兼容 | 原因 |
+|------|-----------|------|
+| `run({ scan: ["src"] })` | ❌ 不可用 | 启动时扫描文件系统，但源文件不在二进制中 |
+| `run()` | ✅ 正常 | 纯注册表模式，装饰器在启动时执行，自动收集 |
+| `run({ controllers: [X] })` | ✅ 正常 | 原始显式模式，类引用已编译进二进制 |
+
+**建议：**
+```
+开发环境   → Application.run({ scan: ["src/controller"] })     // 方便
+生产二进制 → Application.run()                                  // 纯注册表模式，二进制兼容
+              Application.run({ controllers: [ImportedCtrl] })  // 或显式模式
+```
+
+---
+
 ## 装饰器参考
 
 ### HTTP 路由
@@ -819,18 +838,16 @@ Application.run({
 
 ## 本地开发
 
-```bash
-# 克隆并安装
-cd heming-bun-boot-core
-bun install
+本项目使用 **Bun workspaces**——在根目录执行一次 `bun install` 即可安装所有包。
 
-cd ../heming-bun-boot-ext
+```bash
+# 克隆并安装（一条命令安装所有包）
+cd heming-bun-boot
 bun install
 
 # 运行示例
-cd ../heming-bun-boot-demo
-bun install
-bun run index.ts
+cd heming-bun-boot-demo-auto
+bun run dev
 ```
 
 ### 使用 Ext 测试
@@ -865,6 +882,7 @@ curl http://localhost:3000/users/999 \
 
 ```
 bun-project/
+├── package.json                        # Workspace 根配置 (bun install 在此执行)
 ├── heming-bun-boot-core/              # heming-bun-boot
 │   ├── package.json
 │   ├── tsconfig.json
@@ -883,7 +901,8 @@ bun-project/
 │       │   ├── controller.ts          # @Controller
 │       │   ├── http.ts                # @Get/@Post/...
 │       │   ├── inject.ts              # @Injectable/@Inject
-│       │   └── config.ts              # @Configuration/@Value
+│       │   ├── config.ts              # @Configuration/@Value
+│       │   └── metadata-bridge.ts     # Stage 3 装饰器桥接工具
 │       ├── router/
 │       │   ├── router.ts              # Router
 │       │   └── matcher.ts             # 路由匹配算法
@@ -911,7 +930,28 @@ bun-project/
 │           ├── jwt.service.ts         # JwtService
 │           ├── auth.guard.ts          # AuthGuard + JwtAuthGuard
 │           └── auth.decorators.ts     # @UseGuard/@Public/@CurrentUser
-└── heming-bun-boot-demo/              # 示例项目
+├── heming-bun-boot-db/                # heming-bun-boot-db
+│   ├── package.json
+│   └── src/
+│       ├── index.ts
+│       ├── db-application.ts
+│       ├── decorators/
+│       │   ├── column.ts              # @Column/@Id/...
+│       │   └── table.ts               # @Table
+│       ├── repository/
+│       │   └── base-repository.ts
+│       └── dialect/
+│           ├── mysql-dialect.ts
+│           └── pg-dialect.ts
+├── heming-bun-boot-demo/              # 示例项目（显式模式）
+│   ├── package.json
+│   ├── .env
+│   └── index.ts
+├── heming-bun-boot-demo-auto/         # 示例项目（自动发现模式）
+│   ├── package.json
+│   ├── .env
+│   └── index.ts
+└── heming-bun-boot-demo-pg/           # 示例项目（PostgreSQL）
     ├── package.json
     ├── .env
     └── index.ts

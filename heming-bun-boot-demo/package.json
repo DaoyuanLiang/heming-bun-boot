@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "heming-bun-boot": "^0.1.1",
-    "heming-bun-boot-ext": "^0.1.2",
-    "heming-bun-boot-db": "^0.1.2",
+    "heming-bun-boot": "workspace:*",
+    "heming-bun-boot-ext": "workspace:*",
+    "heming-bun-boot-db": "workspace:*",
     "mysql2": "^3.14.0",
     "reflect-metadata": "^0.2.2"
   },

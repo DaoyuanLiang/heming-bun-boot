@@ -1,12 +1,12 @@
 {
-  "name": "heming-bun-boot-demo-pg",
+  "name": "heming-bun-boot-demo-auto",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
     "heming-bun-boot": "workspace:*",
     "heming-bun-boot-ext": "workspace:*",
     "heming-bun-boot-db": "workspace:*",
-    "pg": "^8.13.0",
+    "mysql2": "^3.14.0",
     "reflect-metadata": "^0.2.2"
   },
   "scripts": {

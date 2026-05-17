@@ -15,12 +15,16 @@ export { Context } from "./context";
 
 // HTTP decorators
 export { Controller, CONTROLLER_PREFIX, CONTROLLER_ROUTES } from "./decorators/controller";
+export type { ControllerOptions } from "./decorators/controller";
 export { Get, Post, Put, Delete, Patch } from "./decorators/http";
 export type { RouteDefinition, HttpMethod } from "./decorators/http";
 
 // DI decorators
-export { Injectable, Inject, INJECTABLE_SCOPE, INJECT_PARAMS } from "./decorators/inject";
-export type { ScopeType } from "./decorators/inject";
+export { Injectable, Inject, INJECTABLE_SCOPE, INJECT_PARAMS, INJECT_DEPS } from "./decorators/inject";
+export type { ScopeType, InjectableOptions } from "./decorators/inject";
+
+// Metadata bridge (Stage 3 utility)
+export { createMetadataBridge } from "./decorators/metadata-bridge";
 
 // Config decorators
 export { Configuration, Value, CONFIGURATION_MARKER, VALUE_METADATA } from "./decorators/config";

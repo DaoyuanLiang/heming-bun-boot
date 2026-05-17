@@ -287,6 +287,25 @@ Application.run();
 
 ---
 
+## Binary Build Compatibility
+
+When using `bun build --compile`, compiled binaries do **not** include source `.ts` files. This affects auto-discovery modes differently:
+
+| Mode | Binary-compatible | Why |
+|------|-------------------|-----|
+| `run({ scan: ["src"] })` | ❌ No | `ModuleScanner` reads filesystem at startup; source files aren't bundled |
+| `run()` | ✅ Yes | Pure registry mode — decorators run at startup, `AUTO_REGISTRY` populated automatically |
+| `run({ controllers: [X] })` | ✅ Yes | Original explicit mode — class references compiled into binary |
+
+**Recommendation:**
+```
+Development  → Application.run({ scan: ["src/controller"] })   // convenience
+Production   → Application.run()                                // pure registry, binary-safe
+               Application.run({ controllers: [ImportedCtrl] }) // or explicit mode
+```
+
+---
+
 ## Decorator Reference
 
 ### HTTP Routing
@@ -814,18 +833,16 @@ Application.run({
 
 ## Local Development
 
+This project uses **Bun workspaces** — a single `bun install` at the root installs everything.
+
 ```bash
-# Clone and install
-cd heming-bun-boot-core
+# Clone and install (one command for all packages)
+cd heming-bun-boot
 bun install
 
-cd ../heming-bun-boot-ext
-bun install
-
-# Run the demo
-cd ../heming-bun-boot-demo
-bun install
-bun run index.ts
+# Run a demo
+cd heming-bun-boot-demo-auto
+bun run dev
 ```
 
 ### Testing with Ext
@@ -860,6 +877,7 @@ curl http://localhost:3000/users/999 \
 
 ```
 bun-project/
+├── package.json                        # Workspace root (bun install here)
 ├── heming-bun-boot-core/              # heming-bun-boot
 │   ├── package.json
 │   ├── tsconfig.json
@@ -878,7 +896,8 @@ bun-project/
 │       │   ├── controller.ts          # @Controller
 │       │   ├── http.ts                # @Get/@Post/...
 │       │   ├── inject.ts              # @Injectable/@Inject
-│       │   └── config.ts              # @Configuration/@Value
+│       │   ├── config.ts              # @Configuration/@Value
+│       │   └── metadata-bridge.ts     # Stage 3 decorator bridge utility
 │       ├── router/
 │       │   ├── router.ts              # Router
 │       │   └── matcher.ts             # Route matching algorithm
@@ -906,7 +925,28 @@ bun-project/
 │           ├── jwt.service.ts         # JwtService
 │           ├── auth.guard.ts          # AuthGuard + JwtAuthGuard
 │           └── auth.decorators.ts     # @UseGuard/@Public/@CurrentUser
-└── heming-bun-boot-demo/              # Demo project
+├── heming-bun-boot-db/                # heming-bun-boot-db
+│   ├── package.json
+│   └── src/
+│       ├── index.ts
+│       ├── db-application.ts
+│       ├── decorators/
+│       │   ├── column.ts              # @Column/@Id/...
+│       │   └── table.ts               # @Table
+│       ├── repository/
+│       │   └── base-repository.ts
+│       └── dialect/
+│           ├── mysql-dialect.ts
+│           └── pg-dialect.ts
+├── heming-bun-boot-demo/              # Demo (explicit mode)
+│   ├── package.json
+│   ├── .env
+│   └── index.ts
+├── heming-bun-boot-demo-auto/         # Demo (auto-discovery mode)
+│   ├── package.json
+│   ├── .env
+│   └── index.ts
+└── heming-bun-boot-demo-pg/           # Demo (PostgreSQL)
     ├── package.json
     ├── .env
     └── index.ts

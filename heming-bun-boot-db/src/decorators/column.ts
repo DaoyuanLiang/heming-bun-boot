@@ -1,4 +1,5 @@
 import "reflect-metadata";
+import { createMetadataBridge } from "heming-bun-boot";
 
 export const COLUMNS_METADATA = Symbol("bun-db:columns");
 
@@ -27,7 +28,7 @@ export interface ColumnOptions {
   updatable?: boolean;
 }
 
-interface StoredColumn {
+export interface StoredColumn {
   propertyKey: string;
   options?: ColumnOptions;
   isPrimary: boolean;
@@ -38,6 +39,8 @@ interface StoredColumn {
   isTransient: boolean;
   enumType?: EnumType;
 }
+
+const columnBridge = createMetadataBridge<StoredColumn>();
 
 function getOrCreateColumns(target: any): StoredColumn[] {
   const existing: StoredColumn[] = Reflect.getMetadata(COLUMNS_METADATA, target) || [];
@@ -64,11 +67,36 @@ function findColumn(target: any, propertyKey: string): StoredColumn {
   return col;
 }
 
+/** @internal Consume pending columns (called by @Table class decorator). */
+export function consumePendingColumns(symbol: symbol, target: Function): number {
+  return columnBridge.consume(symbol, target);
+}
+
+/** @internal Stage 3 helper: get or create a StoredColumn from the bridge. */
+function stage3Column(context: any): StoredColumn {
+  return columnBridge.upsert(
+    c => c.propertyKey === context.name,
+    () => ({
+      propertyKey: context.name as string,
+      isPrimary: false,
+      isVersion: false,
+      isCreatedDate: false,
+      isUpdatedDate: false,
+      isTransient: false,
+    }),
+  );
+}
+
 /**
  * Marks a property as a database column.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
 export function Column(options?: ColumnOptions): PropertyDecorator {
-  return (target: Object, propertyKey: string | symbol) => {
+  return (target: any, propertyKey: any) => {
+    if (propertyKey?.kind) {
+      stage3Column(propertyKey).options = options;
+      return;
+    }
     const col = findColumn(target.constructor, propertyKey as string);
     col.options = options;
   };
@@ -76,17 +104,27 @@ export function Column(options?: ColumnOptions): PropertyDecorator {
 
 /**
  * Marks a property as the primary key.
- * Can be applied to multiple properties for composite keys.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
-export function Id(target: Object, propertyKey: string | symbol): void;
+export function Id(target: any, propertyKey: any): void;
 export function Id(): PropertyDecorator;
-export function Id(target?: Object, propertyKey?: string | symbol): any {
+export function Id(target?: any, propertyKey?: any): any {
+  // Stage 3 (Bun): target is undefined for instance fields — check context first
+  if (propertyKey?.kind) {
+    stage3Column(propertyKey).isPrimary = true;
+    return;
+  }
+  // Legacy experimental (tsc): target is the prototype
   if (target && propertyKey) {
     const col = findColumn(target.constructor, propertyKey as string);
     col.isPrimary = true;
     return;
   }
-  return (t: Object, pk: string | symbol) => {
+  return (t: any, pk: any) => {
+    if (pk?.kind) {
+      stage3Column(pk).isPrimary = true;
+      return;
+    }
     const col = findColumn(t.constructor, pk as string);
     col.isPrimary = true;
   };
@@ -94,31 +132,54 @@ export function Id(target?: Object, propertyKey?: string | symbol): any {
 
 /**
  * Specifies the generation strategy for a primary key value.
- * IDENTITY = database auto-increment, UUID = uuid v4, AUTO = auto-detect.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
 export function GeneratedValue(strategy: GenerationType): PropertyDecorator {
-  return (target: Object, propertyKey: string | symbol) => {
+  return (target: any, propertyKey: any) => {
+    if (propertyKey?.kind) {
+      stage3Column(propertyKey).generationType = strategy;
+      return;
+    }
     const col = findColumn(target.constructor, propertyKey as string);
     col.generationType = strategy;
   };
 }
 
-function makePropertyDecorator(setter: (col: StoredColumn) => void) {
-  return (target: Object, propertyKey: string | symbol) => {
+/** @internal shared Stage 3 + legacy decorator application */
+function applyColumnSetter(
+  target: any,
+  propertyKey: any,
+  setter: (col: StoredColumn) => void,
+): void {
+  if (propertyKey?.kind) {
+    setter(stage3Column(propertyKey));
+  } else {
     const col = findColumn(target.constructor, propertyKey as string);
     setter(col);
+  }
+}
+
+function makePropertyDecorator(setter: (col: StoredColumn) => void) {
+  return (target: any, propertyKey: any) => {
+    applyColumnSetter(target, propertyKey, setter);
   };
 }
 
 /**
  * Marks a numeric property as the optimistic lock version.
- * Automatically incremented on update; stale updates are rejected.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
-export function Version(target: Object, propertyKey: string | symbol): void;
+export function Version(target: any, propertyKey: any): void;
 export function Version(): PropertyDecorator;
-export function Version(target?: Object, propertyKey?: string | symbol): any {
+export function Version(target?: any, propertyKey?: any): any {
+  // Stage 3 (Bun): target is undefined for instance fields — check context first
+  if (propertyKey?.kind) {
+    stage3Column(propertyKey).isVersion = true;
+    return;
+  }
   if (target && propertyKey) {
-    makePropertyDecorator(c => { c.isVersion = true; })(target, propertyKey);
+    const col = findColumn(target.constructor, propertyKey as string);
+    col.isVersion = true;
     return;
   }
   return makePropertyDecorator(c => { c.isVersion = true; });
@@ -126,12 +187,18 @@ export function Version(target?: Object, propertyKey?: string | symbol): any {
 
 /**
  * Automatically sets the property to the current timestamp on insert.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
-export function CreatedDate(target: Object, propertyKey: string | symbol): void;
+export function CreatedDate(target: any, propertyKey: any): void;
 export function CreatedDate(): PropertyDecorator;
-export function CreatedDate(target?: Object, propertyKey?: string | symbol): any {
+export function CreatedDate(target?: any, propertyKey?: any): any {
+  if (propertyKey?.kind) {
+    stage3Column(propertyKey).isCreatedDate = true;
+    return;
+  }
   if (target && propertyKey) {
-    makePropertyDecorator(c => { c.isCreatedDate = true; })(target, propertyKey);
+    const col = findColumn(target.constructor, propertyKey as string);
+    col.isCreatedDate = true;
     return;
   }
   return makePropertyDecorator(c => { c.isCreatedDate = true; });
@@ -139,12 +206,18 @@ export function CreatedDate(target?: Object, propertyKey?: string | symbol): any
 
 /**
  * Automatically sets the property to the current timestamp on insert and update.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
-export function UpdatedDate(target: Object, propertyKey: string | symbol): void;
+export function UpdatedDate(target: any, propertyKey: any): void;
 export function UpdatedDate(): PropertyDecorator;
-export function UpdatedDate(target?: Object, propertyKey?: string | symbol): any {
+export function UpdatedDate(target?: any, propertyKey?: any): any {
+  if (propertyKey?.kind) {
+    stage3Column(propertyKey).isUpdatedDate = true;
+    return;
+  }
   if (target && propertyKey) {
-    makePropertyDecorator(c => { c.isUpdatedDate = true; })(target, propertyKey);
+    const col = findColumn(target.constructor, propertyKey as string);
+    col.isUpdatedDate = true;
     return;
   }
   return makePropertyDecorator(c => { c.isUpdatedDate = true; });
@@ -152,12 +225,18 @@ export function UpdatedDate(target?: Object, propertyKey?: string | symbol): any
 
 /**
  * Excludes the property from persistence.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
-export function Transient(target: Object, propertyKey: string | symbol): void;
+export function Transient(target: any, propertyKey: any): void;
 export function Transient(): PropertyDecorator;
-export function Transient(target?: Object, propertyKey?: string | symbol): any {
+export function Transient(target?: any, propertyKey?: any): any {
+  if (propertyKey?.kind) {
+    stage3Column(propertyKey).isTransient = true;
+    return;
+  }
   if (target && propertyKey) {
-    makePropertyDecorator(c => { c.isTransient = true; })(target, propertyKey);
+    const col = findColumn(target.constructor, propertyKey as string);
+    col.isTransient = true;
     return;
   }
   return makePropertyDecorator(c => { c.isTransient = true; });
@@ -165,13 +244,15 @@ export function Transient(target?: Object, propertyKey?: string | symbol): any {
 
 /**
  * Specifies how an enum value is stored.
- * STRING = enum value name, ORDINAL = enum index.
+ * Compatible with both Stage 3 (Bun) and experimental (tsc) decorators.
  */
 export function Enumerated(type: EnumType): PropertyDecorator {
-  return (target: Object, propertyKey: string | symbol) => {
+  return (target: any, propertyKey: any) => {
+    if (propertyKey?.kind) {
+      stage3Column(propertyKey).enumType = type;
+      return;
+    }
     const col = findColumn(target.constructor, propertyKey as string);
     col.enumType = type;
   };
 }
-
-export type { StoredColumn };

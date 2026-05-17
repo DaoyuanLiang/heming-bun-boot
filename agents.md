@@ -57,6 +57,8 @@ ExtApplication.run({ scan: ["src/controller", "src/service", "src/config"] }, cr
 
 Merge priority: `explicit > AUTO_REGISTRY > FS scan`. `AUTO_REGISTRY` is exported from `heming-bun-boot` for test cleanup: `AUTO_REGISTRY.controllers.clear()`.
 
+**Binary build caveat:** `scan` mode requires filesystem access → **not** compatible with `bun build --compile`. Use `run()` (registry mode) or explicit arrays for compiled binaries.
+
 ## DI Tokens (from DB module)
 
 | Token | Value | Provides |
@@ -377,10 +379,17 @@ fetch("/api/posts", {
 | DB | `heming-bun-boot-db` | ORM decorators, repository, DDL |
 | Demo | local only | Reference blog app |
 
-## Development Workflow (Windows)
+## Development Workflow
 
-```bat
-cd heming-bun-boot-demo
-sync-deps.bat          # pack ext + db → tgz → install
-bun run index.ts       # start dev server
+The project uses **Bun workspaces** — one install at the root, all packages link automatically:
+
+```bash
+cd heming-bun-boot
+bun install            # install all workspaces
+
+# Run any demo
+cd heming-bun-boot-demo-auto
+bun run dev            # starts dev server with hot reload
 ```
+
+No manual symlinks, no `file:` protocol, no packing scripts needed.

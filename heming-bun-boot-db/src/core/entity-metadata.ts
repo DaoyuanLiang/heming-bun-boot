@@ -60,14 +60,20 @@ const DEFAULT_TYPE_MAP = new Map<string, string>([
 ]);
 
 function resolveDatabaseType(stored: StoredColumn, tsType: Function): string {
+  // 1. Explicit type in @Column options always wins
   if (stored.options?.type) return stored.options.type;
+
+  // 2. Infer from specialized decorators (Bun Stage 3 has no design:type)
+  if (stored.isCreatedDate || stored.isUpdatedDate) return DEFAULT_TYPE_MAP.get("date")!;
+  if (stored.isPrimary && stored.generationType) return DEFAULT_TYPE_MAP.get("number")!;
+  if (stored.isVersion) return DEFAULT_TYPE_MAP.get("number")!;
+
+  // 3. design:type metadata (available with tsc emitDecoratorMetadata)
   if (tsType === String) {
     const length = stored.options?.length ?? 255;
     return length > 65535 ? "TEXT" : `VARCHAR(${length})`;
   }
-  if (tsType === Number) {
-    return DEFAULT_TYPE_MAP.get("number")!;
-  }
+  if (tsType === Number) return DEFAULT_TYPE_MAP.get("number")!;
   if (tsType === Boolean) {
     const length = stored.options?.length ?? 1;
     return `TINYINT(${length})`;
@@ -75,8 +81,10 @@ function resolveDatabaseType(stored: StoredColumn, tsType: Function): string {
   if (tsType === BigInt) return DEFAULT_TYPE_MAP.get("bigint")!;
   if (tsType === Date) return DEFAULT_TYPE_MAP.get("date")!;
   if (tsType === Buffer) return "BLOB";
-  const typeName = typeof tsType === "function" ? tsType.name.toLowerCase() : "object";
-  return DEFAULT_TYPE_MAP.get(typeName) ?? "JSON";
+
+  // 4. Fallback: when design:type is unavailable (Bun Stage 3), default to VARCHAR.
+  //    Use @Column({ type: "json" }) explicitly for JSON columns.
+  return "VARCHAR(255)";
 }
 
 export class EntityMetadataStorage {
