@@ -8,8 +8,11 @@ export interface RouteDefinition {
   handlerName: string;
 }
 
+// Compatible with both Stage 3 (2 args) and tsc experimental (3 args) decorator signatures
+type MethodDecoratorCompat = (target: any, context: any, descriptor?: PropertyDescriptor) => any;
+
 function createMethodDecorator(method: HttpMethod) {
-  return (path: string = ""): MethodDecorator => {
+  return (path: string = ""): MethodDecoratorCompat => {
     return (target: any, propertyKey: any) => {
       // Stage 3 (Bun): target is the method function, propertyKey is DecoratorContext
       if (propertyKey?.kind) {
